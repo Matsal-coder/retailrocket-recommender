@@ -1,1 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
 .venv/
+venv/
+env/
+
+# Environment variables
+.env
+.env.*
+
+# Keep example env files
+!.env.example
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+data/raw/*
+data/interim/*
+data/processed/*
+
+# Keep data directories
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# Artifacts
+artifacts/models/*
+artifacts/encoders/*
+artifacts/reports/*
+
+# Keep artifact directories
+!artifacts/models/.gitkeep
+!artifacts/encoders/.gitkeep
+!artifacts/reports/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# MLflow and DVC - future blocks
+mlruns/
+.dvc/tmp/
