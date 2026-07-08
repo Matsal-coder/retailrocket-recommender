@@ -1,7 +1,8 @@
 """Integration tests for environment validation."""
 
-from retail_recommender.config.settings import Settings
 from scripts.validate_env import validate_directories
+
+from retail_recommender.config.settings import Settings
 
 
 def test_validate_directories_with_project_defaults() -> None:

@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "retailrocket-recommender"
+version = "0.1.0"
+description = "Product recommendation system for e-commerce using RetailRocket implicit feedback data."
+authors = ["Mateus Saldanha"]
+readme = "README.md"
+packages = [{ include = "retail_recommender", from = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+pydantic = "^2.0"
+pydantic-settings = "^2.0"
+python-dotenv = "^1.0"
+pyyaml = "^6.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-cov = "^5.0"
+ruff = "^0.8.0"
+pre-commit = "^4.0.0"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --strict-markers --strict-config --cov=retail_recommender --cov-report=term-missing"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "B",
+    "UP",
+    "PL",
+    "RUF",
+]
+ignore = [
+    "PLR0913"
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
