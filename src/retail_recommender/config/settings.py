@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     )
     artifacts_dir: Path = Field(default=Path("artifacts"), alias="ARTIFACTS_DIR")
 
-    random_seed: int = Field(default=42, alias="RANDOM_SEED")
+    random_seed: int = Field(default=317, alias="RANDOM_SEED")
 
     mlflow_tracking_uri: str | None = Field(
         default=None,

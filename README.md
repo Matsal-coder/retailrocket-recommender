@@ -292,7 +292,7 @@ RAW_DATA_DIR=data/raw
 INTERIM_DATA_DIR=data/interim
 PROCESSED_DATA_DIR=data/processed
 ARTIFACTS_DIR=artifacts
-RANDOM_SEED=42
+RANDOM_SEED=317
 ```
 
 O arquivo `.env.example` deve ser versionado.
@@ -338,7 +338,7 @@ O projeto usará seeds fixas para reduzir variação entre execuções.
 A seed inicial configurada é:
 
 ```text
-RANDOM_SEED=42
+RANDOM_SEED=317
 ```
 
 Nos blocos futuros, essa seed será aplicada em:
