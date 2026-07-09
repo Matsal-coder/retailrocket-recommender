@@ -23,7 +23,7 @@ pre-commit = "^4.0.0"
 minversion = "8.0"
 addopts = "-ra --strict-markers --strict-config --cov=retail_recommender --cov-report=term-missing"
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 88
