@@ -1,0 +1,9 @@
+dataset:
+  name: retailrocket
+  raw_events_file: data/raw/events.csv
+
+implicit_feedback:
+  event_weights:
+    view: 1
+    addtocart: 3
+    transaction: 5
