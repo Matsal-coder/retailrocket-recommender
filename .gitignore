@@ -37,6 +37,10 @@ Thumbs.db
 data/raw/*
 data/interim/*
 data/processed/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!data/raw/*.dvc
 
 # Keep data directories
 !data/raw/.gitkeep

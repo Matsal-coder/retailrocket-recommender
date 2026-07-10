@@ -1,9 +1,18 @@
-dataset:
-  name: retailrocket
-  raw_events_file: data/raw/events.csv
+raw_events_path: data/raw/events.csv
+validation_report_path: artifacts/reports/data_validation.json
 
-implicit_feedback:
-  event_weights:
-    view: 1
-    addtocart: 3
-    transaction: 5
+required_columns:
+  - timestamp
+  - visitorid
+  - event
+  - itemid
+  - transactionid
+
+allowed_events:
+  - view
+  - addtocart
+  - transaction
+
+minimum_interactions: 10000
+minimum_users: 100
+minimum_items: 100
