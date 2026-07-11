@@ -38,66 +38,7 @@ Entre os principais requisitos técnicos estão:
 - modelos de recomendação com Scikit-Learn e PyTorch;
 - containerização com Docker.
 
-## Escopo atual do projeto
-
-O projeto está organizado em blocos incrementais.
-
-### Bloco 1 — Estrutura inicial, Clean Code e ambiente base
-
-O Bloco 1 configura a fundação técnica do projeto.
-
-Incluído no Bloco 1:
-
-- criação da estrutura inicial de pastas;
-- configuração do Poetry;
-- separação entre dependências de produção e desenvolvimento;
-- configuração do Ruff;
-- configuração do Pytest;
-- configuração do pre-commit;
-- criação do `.gitignore`;
-- criação do `.dockerignore`;
-- criação do `.env.example`;
-- criação de settings com Pydantic Settings;
-- criação de logging padronizado;
-- criação de script de validação do ambiente;
-- criação do Makefile;
-- criação dos primeiros testes básicos.
-
-### Bloco 2 — Dataset, DVC inicial, loader e validação dos dados
-
-O Bloco 2 prepara a base RetailRocket para uso no projeto.
-
-Incluído no Bloco 2:
-
-- posicionamento do arquivo bruto `events.csv` em `data/raw/`;
-- inicialização do DVC;
-- versionamento do arquivo bruto com DVC;
-- configuração inicial de parâmetros de dados;
-- criação do loader do RetailRocket;
-- criação do validador estrutural do dataset;
-- criação do pipeline `validate_data`;
-- geração do relatório `artifacts/reports/data_validation.json`;
-- criação do primeiro stage DVC em `dvc.yaml`;
-- testes unitários e de integração relacionados ao loader, ao validador e ao pipeline.
-
-Fora do escopo do Bloco 2:
-
-- preprocessamento completo;
-- Strategy Pattern de preprocessamento;
-- agregação usuário-item;
-- split temporal;
-- encoders;
-- negative sampling;
-- baselines;
-- modelo neural PyTorch;
-- métricas de ranking;
-- MLflow;
-- Docker;
-- Model Registry.
-
-Esses itens serão implementados nos próximos blocos.
-
-## Estrutura inicial do projeto
+## Estrutura atual do projeto
 
 ```text
 retailrocket-recommender/
@@ -134,21 +75,25 @@ retailrocket-recommender/
 ├── docs/
 ├── tests/
 │   ├── unit/
+│   │   └── data/
+│   │       ├── loaders/
+│   │       └── validators/
 │   └── integration/
+│       └── pipelines/
 ├── scripts/
 ├── dvc.yaml
+├── dvc.lock
 ├── params.yaml
 ├── pyproject.toml
 ├── poetry.lock
 ├── .env.example
 ├── .gitignore
 ├── .dockerignore
+├── .dvcignore
 ├── .pre-commit-config.yaml
 ├── README.md
 └── Makefile
 ```
-
-Observação: o arquivo real `data/raw/events.csv` existe localmente, mas não deve ser versionado diretamente pelo Git. O Git deve versionar apenas o arquivo de metadados `data/raw/events.csv.dvc`.
 
 ## Principais diretórios
 
@@ -156,53 +101,17 @@ Observação: o arquivo real `data/raw/events.csv` existe localmente, mas não d
 
 Contém o código-fonte principal da aplicação.
 
-### `src/retail_recommender/data/loaders/`
-
-Contém componentes responsáveis pela leitura de dados brutos.
-
-No Bloco 2, o principal loader será:
-
-```text
-src/retail_recommender/data/loaders/retailrocket_loader.py
-```
-
-Esse módulo deve carregar o arquivo `events.csv` e retornar uma estrutura de dados adequada para validação e etapas futuras.
-
-### `src/retail_recommender/data/validators/`
-
-Contém validadores estruturais dos dados.
-
-No Bloco 2, o principal validador será:
-
-```text
-src/retail_recommender/data/validators/events_validator.py
-```
-
-Esse módulo deve verificar se o dataset possui o contrato mínimo esperado para o problema de recomendação.
-
-### `src/retail_recommender/pipelines/`
-
-Contém pipelines executáveis do projeto.
-
-No Bloco 2, será criado o pipeline:
-
-```text
-src/retail_recommender/pipelines/validate_data.py
-```
-
-Esse pipeline deve carregar o dataset, executar a validação estrutural e salvar um relatório em JSON.
-
 ### `configs/`
 
 Contém arquivos de configuração em YAML.
 
-No Bloco 2, o arquivo principal é:
+Atualmente, o arquivo principal é:
 
 ```text
 configs/data.yaml
 ```
 
-Ele concentra caminhos e regras básicas do dataset, como colunas obrigatórias, eventos permitidos e limites mínimos de interações, usuários e itens.
+Ele define caminhos e parâmetros básicos para validação do dataset.
 
 ### `data/`
 
@@ -214,13 +123,25 @@ A pasta é dividida em:
 - `data/interim/`: dados intermediários;
 - `data/processed/`: dados prontos para modelagem.
 
-Os dados reais não devem ser versionados diretamente no Git. O versionamento dos dados é feito com DVC.
+Os dados reais não devem ser versionados diretamente no Git.
+
+O arquivo bruto principal esperado é:
+
+```text
+data/raw/events.csv
+```
+
+Esse arquivo é versionado pelo DVC por meio de:
+
+```text
+data/raw/events.csv.dvc
+```
 
 ### `artifacts/`
 
-Contém artefatos gerados pelo projeto, como modelos treinados, encoders e relatórios.
+Contém artefatos gerados pelo projeto, como relatórios, modelos e encoders.
 
-No Bloco 2, a validação de dados deve gerar:
+Após a validação dos dados, o relatório é salvo em:
 
 ```text
 artifacts/reports/data_validation.json
@@ -230,11 +151,14 @@ artifacts/reports/data_validation.json
 
 Contém testes unitários e de integração.
 
-No Bloco 2, devem ser adicionados testes para:
+Atualmente existem testes para:
 
+- configurações;
+- logging;
+- validação de ambiente;
 - loader do RetailRocket;
-- validador de eventos;
-- pipeline de validação de dados com fixture pequena.
+- validador estrutural do `events.csv`;
+- pipeline de validação dos dados.
 
 ### `scripts/`
 
@@ -274,31 +198,33 @@ No Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-## Validação do ambiente
+## Configuração via ambiente
 
-Rode:
+As configurações principais são lidas a partir de variáveis de ambiente.
 
-```bash
-poetry run python scripts/validate_env.py
+Exemplo:
+
+```env
+APP_NAME=retailrocket-recommender
+APP_ENV=local
+LOG_LEVEL=INFO
+DATA_DIR=data
+RAW_DATA_DIR=data/raw
+INTERIM_DATA_DIR=data/interim
+PROCESSED_DATA_DIR=data/processed
+ARTIFACTS_DIR=artifacts
+RANDOM_SEED=317
 ```
 
-Ou, se tiver `make` disponível:
+O arquivo `.env.example` deve ser versionado.
 
-```bash
-make validate
-```
-
-Resultado esperado:
-
-```text
-Environment validation finished successfully
-```
+O arquivo `.env` local não deve ser versionado.
 
 ## Dataset
 
 O dataset escolhido é o RetailRocket.
 
-Neste projeto, o principal arquivo utilizado será:
+Neste projeto, o principal arquivo utilizado é:
 
 ```text
 events.csv
@@ -310,100 +236,75 @@ Ele contém eventos de interação entre usuários e produtos, como:
 - `addtocart`;
 - `transaction`.
 
-O arquivo deve ser colocado localmente em:
+O arquivo bruto deve estar localizado em:
 
 ```text
 data/raw/events.csv
-```
-
-O arquivo `events.csv` não deve ser commitado diretamente no Git.
-
-O versionamento do dataset bruto é feito com DVC. O Git deve versionar apenas o arquivo `.dvc` correspondente:
-
-```text
-data/raw/events.csv.dvc
 ```
 
 ## Contrato esperado do `events.csv`
 
 O arquivo `events.csv` deve conter, no mínimo, as seguintes colunas:
 
-- `timestamp`;
-- `visitorid`;
-- `event`;
-- `itemid`;
-- `transactionid`.
+| Coluna | Descrição |
+| --- | --- |
+| `timestamp` | momento do evento em timestamp Unix em milissegundos |
+| `visitorid` | identificador do usuário/visitante |
+| `event` | tipo de evento realizado |
+| `itemid` | identificador do item/produto |
+| `transactionid` | identificador da transação, quando houver |
 
-A validação estrutural deve verificar:
+Eventos esperados:
 
-- se as colunas obrigatórias existem;
-- se `timestamp`, `visitorid`, `event` e `itemid` não estão totalmente vazios;
-- se os eventos pertencem ao conjunto esperado: `view`, `addtocart`, `transaction`;
-- se há pelo menos 10.000 interações no dataset real;
-- se é possível converter `timestamp` para datetime;
-- se existem usuários e itens suficientes para um problema de recomendação;
-- se o relatório de validação é salvo em JSON.
-
-## DVC
-
-O projeto usa DVC para versionamento de dados e, nos próximos blocos, para definição de pipelines reprodutíveis.
-
-### Inicialização do DVC
-
-Para inicializar o DVC no projeto:
-
-```bash
-poetry run dvc init
+```text
+view
+addtocart
+transaction
 ```
 
-### Adição do dataset bruto
+## Versionamento de dados com DVC
 
-Após colocar o arquivo `events.csv` em `data/raw/`, versione o arquivo com:
+Os dados brutos não são versionados diretamente pelo Git.
 
-```bash
-poetry run dvc add data/raw/events.csv
+O arquivo:
+
+```text
+data/raw/events.csv
 ```
 
-Esse comando cria o arquivo:
+é rastreado pelo DVC por meio do arquivo:
 
 ```text
 data/raw/events.csv.dvc
 ```
 
-Depois, envie os dados para o remote configurado:
+Após clonar o repositório e instalar as dependências, recupere os dados com:
 
 ```bash
-poetry run dvc push
-```
-
-### Recuperação dos dados
-
-Após clonar o projeto em outra máquina, instale as dependências e recupere os dados com:
-
-```bash
-poetry install
 poetry run dvc pull
 ```
 
-### Verificação do status do DVC
-
-Para verificar se os dados e pipelines estão atualizados:
+Para verificar o status dos dados e pipelines:
 
 ```bash
 poetry run dvc status
 ```
 
-Resultado esperado quando tudo estiver correto:
+Resultado esperado quando tudo está sincronizado:
 
 ```text
 Data and pipelines are up to date.
 ```
 
-## Configurações de dados
+## Configuração dos dados
 
-O arquivo `configs/data.yaml` concentra configurações específicas do dataset.
+As configurações principais da validação estão em:
 
-Exemplo esperado:
+```text
+configs/data.yaml
+```
+
+Exemplo:
 
 ```yaml
 raw_events_path: data/raw/events.csv
@@ -426,54 +327,146 @@ minimum_users: 100
 minimum_items: 100
 ```
 
-## Parâmetros do projeto
+Os parâmetros também são registrados em:
 
-O arquivo `params.yaml` concentra parâmetros rastreáveis pelo DVC.
-
-Exemplo inicial:
-
-```yaml
-data:
-  raw_events_path: data/raw/events.csv
-  validation_report_path: artifacts/reports/data_validation.json
-  minimum_interactions: 10000
-  minimum_users: 100
-  minimum_items: 100
-
-events:
-  weights:
-    view: 1
-    addtocart: 3
-    transaction: 5
+```text
+params.yaml
 ```
 
-## Pipeline de validação de dados
+Esses parâmetros são usados pelo DVC para rastrear mudanças relevantes no pipeline.
 
-O primeiro pipeline do projeto será o `validate_data`.
+## Loader do RetailRocket
 
-Objetivo:
+O loader do dataset está implementado em:
 
-1. carregar `data/raw/events.csv`;
-2. validar a estrutura mínima do dataset;
-3. gerar o relatório `artifacts/reports/data_validation.json`.
+```text
+src/retail_recommender/data/loaders/retailrocket_loader.py
+```
 
-O stage correspondente será registrado no `dvc.yaml`.
+Responsabilidades do loader:
 
-Exemplo de execução:
+- receber o caminho do arquivo `events.csv`;
+- verificar se o arquivo existe;
+- carregar o CSV como `pandas.DataFrame`;
+- falhar com erro claro caso o arquivo esteja ausente ou vazio.
+
+O loader não realiza preprocessamento, agregação, split temporal ou transformação de feedback implícito.
+
+## Validador do dataset
+
+O validador estrutural está implementado em:
+
+```text
+src/retail_recommender/data/validators/events_validator.py
+```
+
+A validação verifica:
+
+- existência das colunas obrigatórias;
+- se `timestamp`, `visitorid`, `event` e `itemid` não estão totalmente vazios;
+- se os eventos pertencem ao conjunto esperado;
+- se há pelo menos 10.000 interações no dataset real;
+- se é possível converter `timestamp` para datetime;
+- se há usuários e itens suficientes para um problema de recomendação;
+- se o resultado da validação pode ser convertido para dicionário e salvo em JSON.
+
+O validador retorna um objeto estruturado com:
+
+- `is_valid`;
+- `errors`;
+- `warnings`;
+- `summary`.
+
+## Pipeline de validação dos dados
+
+O pipeline de validação está implementado em:
+
+```text
+src/retail_recommender/pipelines/validate_data.py
+```
+
+Para rodar manualmente:
+
+```bash
+poetry run python -m retail_recommender.pipelines.validate_data
+```
+
+O pipeline:
+
+1. lê as configurações de `configs/data.yaml`;
+2. carrega `data/raw/events.csv`;
+3. valida a estrutura do dataset;
+4. salva o relatório em `artifacts/reports/data_validation.json`;
+5. falha com erro claro caso a validação não seja aprovada.
+
+## Stage DVC `validate_data`
+
+O primeiro stage do DVC é:
+
+```text
+validate_data
+```
+
+Ele está definido em:
+
+```text
+dvc.yaml
+```
+
+Para executar o stage:
 
 ```bash
 poetry run dvc repro validate_data
 ```
 
-Após a execução, o relatório esperado é:
+Para verificar se o pipeline está atualizado:
+
+```bash
+poetry run dvc status
+```
+
+## Relatório de validação
+
+O relatório de validação é salvo em:
 
 ```text
 artifacts/reports/data_validation.json
 ```
 
+Exemplo de estrutura:
+
+```json
+{
+  "is_valid": true,
+  "errors": [],
+  "warnings": [],
+  "summary": {
+    "rows": 2756101,
+    "columns": [
+      "timestamp",
+      "visitorid",
+      "event",
+      "itemid",
+      "transactionid"
+    ],
+    "unique_users": 1407580,
+    "unique_items": 235061,
+    "event_counts": {
+      "view": 2664312,
+      "addtocart": 69332,
+      "transaction": 22457
+    },
+    "min_timestamp": "2015-05-03T03:00:04.384000",
+    "max_timestamp": "2015-09-18T02:59:47.788000"
+  }
+}
+```
+
+Os números acima são ilustrativos e podem variar conforme o arquivo utilizado.
+
 ## Testes
 
-Para rodar os testes:
+Para rodar todos os testes:
 
 ```bash
 poetry run pytest
@@ -495,6 +488,24 @@ Ou:
 
 ```bash
 make test-cov
+```
+
+Para rodar apenas os testes do loader:
+
+```bash
+poetry run pytest tests/unit/data/loaders
+```
+
+Para rodar apenas os testes do validador:
+
+```bash
+poetry run pytest tests/unit/data/validators
+```
+
+Para rodar apenas os testes de integração dos pipelines:
+
+```bash
+poetry run pytest tests/integration/pipelines
 ```
 
 ## Lint e formatação
@@ -544,27 +555,43 @@ Ou:
 make pre-commit
 ```
 
-## Configuração via ambiente
+## Validação do ambiente
 
-As configurações principais são lidas a partir de variáveis de ambiente.
+Rode:
 
-Exemplo:
-
-```env
-APP_NAME=retailrocket-recommender
-APP_ENV=local
-LOG_LEVEL=INFO
-DATA_DIR=data
-RAW_DATA_DIR=data/raw
-INTERIM_DATA_DIR=data/interim
-PROCESSED_DATA_DIR=data/processed
-ARTIFACTS_DIR=artifacts
-RANDOM_SEED=317
+```bash
+poetry run python scripts/validate_env.py
 ```
 
-O arquivo `.env.example` deve ser versionado.
+Ou, se tiver `make` disponível:
 
-O arquivo `.env` local não deve ser versionado.
+```bash
+make validate
+```
+
+Resultado esperado:
+
+```text
+Environment validation finished successfully
+```
+
+## Comandos principais de validação do projeto
+
+Antes de abrir Pull Request ou fazer merge, rode:
+
+```bash
+poetry run pytest
+poetry run ruff check .
+poetry run dvc repro validate_data
+poetry run dvc status
+```
+
+Resultado esperado:
+
+- testes passando;
+- Ruff sem erros;
+- stage `validate_data` reproduzível;
+- DVC sem pendências.
 
 ## Estratégia inicial de modelagem
 
@@ -580,11 +607,11 @@ transaction = 5
 
 Esses pesos poderão ser ajustados em experimentos futuros e rastreados com MLflow.
 
-A implementação de modelos, baselines, treino, métricas de ranking e tracking de experimentos está fora do escopo do Bloco 2.
+A aplicação efetiva desses pesos ainda não foi implementada neste bloco.
 
 ## Reprodutibilidade
 
-O projeto usará seeds fixas para reduzir variação entre execuções.
+O projeto usa seeds fixas para reduzir variação entre execuções.
 
 A seed inicial configurada é:
 
@@ -592,61 +619,16 @@ A seed inicial configurada é:
 RANDOM_SEED=317
 ```
 
-Nos blocos futuros, essa seed será aplicada em:
+Nos próximos blocos, essa seed será aplicada em:
 
 - Python;
 - NumPy;
 - Scikit-Learn;
 - PyTorch.
 
-Além disso, o projeto usará DVC para garantir reprodutibilidade de dados e pipelines.
-
-## Fluxo de branches e commits
-
-Cada funcionalidade nova deve ser desenvolvida em uma branch específica, acompanhada de testes ou validação por comando.
-
-Exemplos de branches para o Bloco 2:
-
-```text
-feature/dvc-initial-setup
-feature/retailrocket-loader
-feature/events-validator
-feature/validate-data-pipeline
-docs/update-dataset-instructions
-```
-
-Exemplos de commits semânticos:
-
-```text
-chore: initialize dvc data versioning
-feat: add retailrocket events loader
-feat: add retailrocket events validation
-feat: add data validation dvc stage
-docs: update dataset and dvc instructions
-```
-
-Antes de cada commit, rode:
-
-```bash
-poetry run pytest
-poetry run ruff check .
-```
-
-Quando houver alterações de DVC, rode também:
-
-```bash
-poetry run dvc status
-```
-
-Para o stage de validação de dados, rode:
-
-```bash
-poetry run dvc repro validate_data
-```
-
 ## Status atual
 
-Bloco atual:
+Bloco atual concluído:
 
 ```text
 Bloco 2 — Dataset, DVC inicial, loader e validação dos dados
@@ -655,25 +637,68 @@ Bloco 2 — Dataset, DVC inicial, loader e validação dos dados
 Status:
 
 ```text
-Em desenvolvimento
+Concluído
 ```
+
+## O que foi concluído até aqui
+
+### Bloco 1 — Estrutura inicial, Clean Code e ambiente base
+
+Concluído:
+
+- criação da estrutura inicial de pastas;
+- configuração do Poetry;
+- separação entre dependências de produção e desenvolvimento;
+- configuração do Ruff;
+- configuração do Pytest;
+- configuração do pre-commit;
+- criação do `.gitignore`;
+- criação do `.dockerignore`;
+- criação do `.env.example`;
+- criação de settings com Pydantic Settings;
+- criação de logging padronizado;
+- criação de script de validação do ambiente;
+- criação do Makefile;
+- criação dos primeiros testes básicos.
+
+### Bloco 2 — Dataset, DVC inicial, loader e validação dos dados
+
+Concluído:
+
+- criação da branch de setup inicial do DVC;
+- instalação e inicialização do DVC;
+- versionamento de `data/raw/events.csv` com DVC;
+- configuração de remote local do DVC;
+- criação/revisão de `configs/data.yaml`;
+- criação/revisão de `params.yaml`;
+- implementação do loader do RetailRocket;
+- implementação do validador estrutural do `events.csv`;
+- implementação do pipeline `validate_data`;
+- geração do relatório `artifacts/reports/data_validation.json`;
+- criação do stage DVC `validate_data`;
+- criação de testes unitários para loader;
+- criação de testes unitários para validator;
+- criação de teste de integração para o pipeline;
+- validação com Pytest;
+- validação com Ruff;
+- validação com `dvc repro validate_data`.
 
 ## Próximos blocos
 
 Os próximos blocos devem implementar:
 
 1. preprocessamento de feedback implícito;
-2. agregação usuário-item;
-3. engenharia de features;
-4. split temporal;
-5. encoders;
-6. amostragem negativa;
-7. baselines de recomendação;
-8. modelo neural com PyTorch;
-9. avaliação Top-K;
-10. tracking com MLflow;
-11. Model Registry;
-12. Dockerfile multi-stage;
-13. docker-compose;
-14. documentação final;
-15. roteiro do vídeo.
+2. aplicação dos pesos por tipo de evento;
+3. agregação usuário-item;
+4. engenharia de features;
+5. split temporal;
+6. encoders de usuários e itens;
+7. amostragem negativa;
+8. baselines de recomendação;
+9. modelo neural com PyTorch;
+10. avaliação Top-K;
+11. tracking com MLflow;
+12. Model Registry;
+13. pipeline DVC completo;
+14. empacotamento com Docker;
+15. documentação final e roteiro do vídeo.
