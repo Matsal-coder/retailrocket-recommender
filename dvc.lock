@@ -1,0 +1,35 @@
+schema: '2.0'
+stages:
+  validate_data:
+    cmd: poetry run python -m retail_recommender.pipelines.validate_data
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 8097d173b653c0a269adcc3674ba3961
+      size: 327
+    - path: data/raw/events.csv
+      hash: md5
+      md5: fddaf7c1c6a9df23a726500a08ffdd7e
+      size: 94237913
+    - path: src/retail_recommender/data/loaders/retailrocket_loader.py
+      hash: md5
+      md5: a9aea2e9a13184a223fe67d5b43bb054
+      size: 974
+    - path: src/retail_recommender/data/validators/events_validator.py
+      hash: md5
+      md5: 25e6255bf3d78e287433a19d3ad93381
+      size: 7148
+    - path: src/retail_recommender/pipelines/validate_data.py
+      hash: md5
+      md5: 705b43062d0aa6507c278e27eee061c2
+      size: 3705
+    params:
+      params.yaml:
+        data.minimum_interactions: 10000
+        data.minimum_items: 100
+        data.minimum_users: 100
+    outs:
+    - path: artifacts/reports/data_validation.json
+      hash: md5
+      md5: 9aa1b2c22fbbf8b0b40408b40c9714ee
+      size: 498

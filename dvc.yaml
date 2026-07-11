@@ -1,0 +1,15 @@
+stages:
+  validate_data:
+    cmd: poetry run python -m retail_recommender.pipelines.validate_data
+    deps:
+    - configs/data.yaml
+    - data/raw/events.csv
+    - src/retail_recommender/data/loaders/retailrocket_loader.py
+    - src/retail_recommender/data/validators/events_validator.py
+    - src/retail_recommender/pipelines/validate_data.py
+    params:
+    - data.minimum_interactions
+    - data.minimum_items
+    - data.minimum_users
+    outs:
+    - artifacts/reports/data_validation.json
