@@ -5,8 +5,13 @@ data:
   minimum_users: 100
   minimum_items: 100
 
-events:
-  weights:
-    view: 1
-    addtocart: 3
-    transaction: 5
+preprocessing:
+  strategy: implicit_feedback
+  allowed_event_types:
+    - view
+    - addtocart
+    - transaction
+  event_weights:
+    view: 1.0
+    addtocart: 3.0
+    transaction: 5.0

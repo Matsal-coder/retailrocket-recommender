@@ -21,8 +21,8 @@ stages:
       size: 7148
     - path: src/retail_recommender/pipelines/validate_data.py
       hash: md5
-      md5: 705b43062d0aa6507c278e27eee061c2
-      size: 3705
+      md5: a9ce141af49e72d6228178d1b92deed9
+      size: 3703
     params:
       params.yaml:
         data.minimum_interactions: 10000
