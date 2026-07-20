@@ -5,8 +5,8 @@ stages:
     deps:
     - path: configs/data.yaml
       hash: md5
-      md5: 8097d173b653c0a269adcc3674ba3961
-      size: 327
+      md5: 1529e8d16ba94a53803a16873ab98593
+      size: 382
     - path: data/raw/events.csv
       hash: md5
       md5: fddaf7c1c6a9df23a726500a08ffdd7e
@@ -33,3 +33,54 @@ stages:
       hash: md5
       md5: 9aa1b2c22fbbf8b0b40408b40c9714ee
       size: 498
+  preprocess:
+    cmd: poetry run python -m retail_recommender.pipelines.preprocess
+    deps:
+    - path: artifacts/reports/data_validation.json
+      hash: md5
+      md5: 9aa1b2c22fbbf8b0b40408b40c9714ee
+      size: 498
+    - path: configs/data.yaml
+      hash: md5
+      md5: 1529e8d16ba94a53803a16873ab98593
+      size: 382
+    - path: data/raw/events.csv
+      hash: md5
+      md5: fddaf7c1c6a9df23a726500a08ffdd7e
+      size: 94237913
+    - path: src/retail_recommender/data/loaders/retailrocket_loader.py
+      hash: md5
+      md5: a9aea2e9a13184a223fe67d5b43bb054
+      size: 974
+    - path: src/retail_recommender/data/preprocessors/base.py
+      hash: md5
+      md5: 4852fb221830382171d810800f7b5083
+      size: 534
+    - path: src/retail_recommender/data/preprocessors/factory.py
+      hash: md5
+      md5: 7e6a1f95e8025f74b733c9705bf72c50
+      size: 1470
+    - path: src/retail_recommender/data/preprocessors/implicit_feedback.py
+      hash: md5
+      md5: 8cbed1c8b32e61f1083f841824c8df73
+      size: 5223
+    - path: src/retail_recommender/pipelines/preprocess.py
+      hash: md5
+      md5: f04187fbf24891c59fd4d9c0ab579b9f
+      size: 5931
+    params:
+      params.yaml:
+        preprocessing.allowed_event_types:
+        - view
+        - addtocart
+        - transaction
+        preprocessing.event_weights:
+          view: 1.0
+          addtocart: 3.0
+          transaction: 5.0
+        preprocessing.strategy: implicit_feedback
+    outs:
+    - path: data/interim/events_clean.parquet
+      hash: md5
+      md5: 5ae99d1ea175c0965b4f7fcc2783468b
+      size: 49997151
