@@ -13,3 +13,7 @@ preprocessing:
     view: 1.0
     addtocart: 3.0
     transaction: 5.0
+
+interaction_filtering:
+  minimum_user_interactions: 2
+  minimum_item_interactions: 2

@@ -5,8 +5,8 @@ stages:
     deps:
     - path: configs/data.yaml
       hash: md5
-      md5: 1529e8d16ba94a53803a16873ab98593
-      size: 382
+      md5: 36cd36277e013dd0b70c72b6d042e409
+      size: 383
     - path: data/raw/events.csv
       hash: md5
       md5: fddaf7c1c6a9df23a726500a08ffdd7e
@@ -42,8 +42,8 @@ stages:
       size: 498
     - path: configs/data.yaml
       hash: md5
-      md5: 1529e8d16ba94a53803a16873ab98593
-      size: 382
+      md5: 36cd36277e013dd0b70c72b6d042e409
+      size: 383
     - path: data/raw/events.csv
       hash: md5
       md5: fddaf7c1c6a9df23a726500a08ffdd7e
