@@ -13,3 +13,20 @@ stages:
     - data.minimum_users
     outs:
     - artifacts/reports/data_validation.json
+  preprocess:
+    cmd: poetry run python -m retail_recommender.pipelines.preprocess
+    deps:
+    - artifacts/reports/data_validation.json
+    - configs/data.yaml
+    - data/raw/events.csv
+    - src/retail_recommender/data/loaders/retailrocket_loader.py
+    - src/retail_recommender/data/preprocessors/base.py
+    - src/retail_recommender/data/preprocessors/factory.py
+    - src/retail_recommender/data/preprocessors/implicit_feedback.py
+    - src/retail_recommender/pipelines/preprocess.py
+    params:
+    - preprocessing.allowed_event_types
+    - preprocessing.event_weights
+    - preprocessing.strategy
+    outs:
+    - data/interim/events_clean.parquet

@@ -1,4 +1,5 @@
 raw_events_path: data/raw/events.csv
+interim_events_path: data/interim/events_clean.parquet
 validation_report_path: artifacts/reports/data_validation.json
 
 required_columns:
