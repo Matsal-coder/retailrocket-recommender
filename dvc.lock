@@ -113,8 +113,8 @@ stages:
       size: 5509
     - path: src/retail_recommender/pipelines/feature_engineering.py
       hash: md5
-      md5: 8d75681de89cf12562be2cce15158270
-      size: 12586
+      md5: 865fc76e35ea217c4b1be9cccdf9613c
+      size: 12322
     params:
       params.yaml:
         interaction_filtering.minimum_item_interactions: 2
