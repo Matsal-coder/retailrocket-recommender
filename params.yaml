@@ -17,3 +17,10 @@ preprocessing:
 interaction_filtering:
   minimum_user_interactions: 2
   minimum_item_interactions: 2
+
+split:
+  strategy: temporal
+  train_size: 0.70
+  validation_size: 0.15
+  test_size: 0.15
+  filter_unknown_entities: true
