@@ -24,3 +24,7 @@ split:
   validation_size: 0.15
   test_size: 0.15
   filter_unknown_entities: true
+
+training:
+  random_seed: 1729
+  negative_samples_per_positive: 4
