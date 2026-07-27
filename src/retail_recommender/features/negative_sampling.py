@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+
+LOGGER = logging.getLogger(__name__)
+LOG_PROGRESS_INTERVAL = 10_000
 
 REQUIRED_COLUMNS = {
     "user_idx",
@@ -68,9 +72,14 @@ def generate_negative_samples(
 
     sampled_pairs: list[tuple[int, int]] = []
 
-    for user_idx, user_rows in positive_interactions.groupby(
+    grouped_users = positive_interactions.groupby(
         "user_idx",
         sort=False,
+    )
+
+    for user_position, (user_idx, user_rows) in enumerate(
+        grouped_users,
+        start=1,
     ):
         positive_count = len(user_rows)
         requested_negative_count = positive_count * config.negative_samples_per_positive
@@ -94,6 +103,12 @@ def generate_negative_samples(
         )
 
         sampled_pairs.extend((user_idx_int, item_idx) for item_idx in sampled_items)
+
+        if user_position % LOG_PROGRESS_INTERVAL == 0:
+            LOGGER.info(
+                "Negative sampling progress: %s users processed",
+                user_position,
+            )
 
     negatives = pd.DataFrame(
         sampled_pairs,
@@ -168,35 +183,43 @@ def _sample_user_items(
     item_count: int,
     sample_count: int,
 ) -> list[int]:
-    """Sample unseen items for one user.
-
-    Sampling allows repeated negative items when the requested number exceeds
-    the number of available unseen items.
+    """Sample unseen item indices using rejection sampling.
 
     Args:
         rng: NumPy random generator.
-        user_idx: Encoded user index.
         forbidden_items: Positive items already observed by the user.
-        item_count: Total number of known item indices.
-        sample_count: Number of negatives requested for the user.
+        item_count: Total number of known items.
+        sample_count: Number of negative samples requested.
 
     Returns:
         Sampled unseen item indices.
+
+    Raises:
+        ValueError: If no unseen item exists for the user.
     """
-    available_items = np.fromiter(
-        (item_idx for item_idx in range(item_count) if item_idx not in forbidden_items),
-        dtype=np.int64,
-    )
+    if len(forbidden_items) >= item_count:
+        msg = "Cannot sample negatives when every item is forbidden."
+        raise ValueError(msg)
 
-    replace = sample_count > len(available_items)
+    sampled_items: list[int] = []
 
-    sampled = rng.choice(
-        available_items,
-        size=sample_count,
-        replace=replace,
-    )
+    while len(sampled_items) < sample_count:
+        remaining = sample_count - len(sampled_items)
 
-    return sampled.astype(int).tolist()
+        candidates = rng.integers(
+            low=0,
+            high=item_count,
+            size=remaining * 2,
+            dtype=np.int64,
+        )
+
+        sampled_items.extend(
+            int(item_idx)
+            for item_idx in candidates
+            if int(item_idx) not in forbidden_items
+        )
+
+    return sampled_items[:sample_count]
 
 
 def _validate_positive_interactions(

@@ -30,3 +30,30 @@ stages:
     - preprocessing.strategy
     outs:
     - data/interim/events_clean.parquet
+  feature_engineering:
+    cmd: poetry run python -m retail_recommender.pipelines.feature_engineering
+    deps:
+    - configs/data.yaml
+    - data/interim/events_clean.parquet
+    - src/retail_recommender/features/id_encoder.py
+    - src/retail_recommender/features/interaction_builder.py
+    - src/retail_recommender/features/negative_sampling.py
+    - src/retail_recommender/features/temporal_split.py
+    - src/retail_recommender/pipelines/feature_engineering.py
+    params:
+    - interaction_filtering.minimum_item_interactions
+    - interaction_filtering.minimum_user_interactions
+    - split.filter_unknown_entities
+    - split.strategy
+    - split.test_size
+    - split.train_size
+    - split.validation_size
+    - training.negative_samples_per_positive
+    - training.random_seed
+    outs:
+    - artifacts/encoders/item_encoder.pkl
+    - artifacts/encoders/user_encoder.pkl
+    - artifacts/reports/feature_engineering_report.json
+    - data/processed/test.parquet
+    - data/processed/train.parquet
+    - data/processed/validation.parquet

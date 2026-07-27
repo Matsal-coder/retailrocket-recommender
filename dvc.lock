@@ -5,8 +5,8 @@ stages:
     deps:
     - path: configs/data.yaml
       hash: md5
-      md5: 36cd36277e013dd0b70c72b6d042e409
-      size: 383
+      md5: 24017f66a4a766b4b2c2fc8cc99844af
+      size: 734
     - path: data/raw/events.csv
       hash: md5
       md5: fddaf7c1c6a9df23a726500a08ffdd7e
@@ -42,8 +42,8 @@ stages:
       size: 498
     - path: configs/data.yaml
       hash: md5
-      md5: 36cd36277e013dd0b70c72b6d042e409
-      size: 383
+      md5: 24017f66a4a766b4b2c2fc8cc99844af
+      size: 734
     - path: data/raw/events.csv
       hash: md5
       md5: fddaf7c1c6a9df23a726500a08ffdd7e
@@ -84,3 +84,70 @@ stages:
       hash: md5
       md5: 5ae99d1ea175c0965b4f7fcc2783468b
       size: 49997151
+  feature_engineering:
+    cmd: poetry run python -m retail_recommender.pipelines.feature_engineering
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 24017f66a4a766b4b2c2fc8cc99844af
+      size: 734
+    - path: data/interim/events_clean.parquet
+      hash: md5
+      md5: 5ae99d1ea175c0965b4f7fcc2783468b
+      size: 49997151
+    - path: src/retail_recommender/features/id_encoder.py
+      hash: md5
+      md5: 11c167183df4f0c90e0fb6242753fd1f
+      size: 7234
+    - path: src/retail_recommender/features/interaction_builder.py
+      hash: md5
+      md5: 4c26491c5f4d514fa7f9f3052deac5b7
+      size: 4901
+    - path: src/retail_recommender/features/negative_sampling.py
+      hash: md5
+      md5: 5a67f20d73a766cc43ea594dcff540a2
+      size: 8147
+    - path: src/retail_recommender/features/temporal_split.py
+      hash: md5
+      md5: 49bddee749647a7de39726b93d1ea575
+      size: 5509
+    - path: src/retail_recommender/pipelines/feature_engineering.py
+      hash: md5
+      md5: 8d75681de89cf12562be2cce15158270
+      size: 12586
+    params:
+      params.yaml:
+        interaction_filtering.minimum_item_interactions: 2
+        interaction_filtering.minimum_user_interactions: 2
+        split.filter_unknown_entities: true
+        split.strategy: temporal
+        split.test_size: 0.15
+        split.train_size: 0.7
+        split.validation_size: 0.15
+        training.negative_samples_per_positive: 4
+        training.random_seed: 1729
+    outs:
+    - path: artifacts/encoders/item_encoder.pkl
+      hash: md5
+      md5: a3aa47a8dcd2c1a496b31fc2c6baf2f4
+      size: 1301810
+    - path: artifacts/encoders/user_encoder.pkl
+      hash: md5
+      md5: 221dbcc985166940b57ac1cecb4c8518
+      size: 3503798
+    - path: artifacts/reports/feature_engineering_report.json
+      hash: md5
+      md5: 351bd67be23ffa362f4af800f9ff56ec
+      size: 743
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 31fc99a01bc6219954502e189b68602f
+      size: 569785
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: 1070ae7a973e58378ea08359faed4329
+      size: 23270721
+    - path: data/processed/validation.parquet
+      hash: md5
+      md5: 64a3d884b7944965d749211c804b4d33
+      size: 812243

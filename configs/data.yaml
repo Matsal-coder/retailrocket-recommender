@@ -2,6 +2,15 @@ raw_events_path: data/raw/events.csv
 interim_events_path: data/interim/events_clean.parquet
 validation_report_path: artifacts/reports/data_validation.json
 
+train_data_path: data/processed/train.parquet
+validation_data_path: data/processed/validation.parquet
+test_data_path: data/processed/test.parquet
+
+user_encoder_path: artifacts/encoders/user_encoder.pkl
+item_encoder_path: artifacts/encoders/item_encoder.pkl
+
+feature_engineering_report_path: artifacts/reports/feature_engineering_report.json
+
 required_columns:
   - timestamp
   - visitorid
