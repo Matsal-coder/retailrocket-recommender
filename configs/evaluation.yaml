@@ -1,0 +1,10 @@
+evaluation:
+  k: 10
+  primary_metric: ndcg_at_10
+  metrics:
+    - precision_at_10
+    - recall_at_10
+    - ndcg_at_10
+    - map_at_10
+    - coverage_at_10
+  exclude_seen_items: true
