@@ -16,6 +16,7 @@ pandas = "^3.0.3"
 pyarrow = "^25.0.0"
 scikit-learn = "^1.9.0"
 scipy = ">=1.17,<1.18"
+torch = "^2.13.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
