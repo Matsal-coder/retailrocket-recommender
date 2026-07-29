@@ -1,3 +1,7 @@
 model:
-  name: popularity
-  top_k: 10
+  name: neural_cf
+  embedding_dim: 32
+  hidden_layers:
+    - 64
+    - 32
+  dropout: 0.2
