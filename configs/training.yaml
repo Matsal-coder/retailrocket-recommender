@@ -1,2 +1,9 @@
 training:
-  random_seed: 317
+  batch_size: 1024
+  learning_rate: 0.001
+  epochs: 30
+  patience: 5
+  minimum_delta: 0.0
+  weight_decay: 0.0
+  checkpoint_path: artifacts/models/best_model.pt
+  device: auto
