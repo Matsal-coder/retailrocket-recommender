@@ -245,6 +245,10 @@ def run_feature_engineering_pipeline(
         data_config,
         "test_data_path",
     )
+    train_positive_path = get_required_path(
+        data_config,
+        "train_positive_path",
+    )
     user_encoder_path = get_required_path(
         data_config,
         "user_encoder_path",
@@ -354,6 +358,10 @@ def run_feature_engineering_pipeline(
     save_parquet(
         train_final.loc[:, TRAINING_COLUMNS],
         train_path,
+    )
+    save_parquet(
+        train_positive.loc[:, EVALUATION_COLUMNS],
+        train_positive_path,
     )
     save_parquet(
         validation.loc[:, EVALUATION_COLUMNS],

@@ -57,6 +57,7 @@ stages:
     - data/processed/test.parquet
     - data/processed/train.parquet
     - data/processed/validation.parquet
+    - data/processed/train_positive.parquet
   train:
     cmd: poetry run python -m retail_recommender.pipelines.train
     deps:
@@ -87,3 +88,35 @@ stages:
     outs:
     - artifacts/models/best_model.pt
     - artifacts/reports/train_metrics.json
+  evaluate:
+    cmd: poetry run python -m retail_recommender.pipelines.evaluate
+    deps:
+    - artifacts/models/best_model.pt
+    - artifacts/reports/train_metrics.json
+    - configs/evaluation.yaml
+    - data/processed/test.parquet
+    - data/processed/train_positive.parquet
+    - src/retail_recommender/evaluation/evaluator.py
+    - src/retail_recommender/evaluation/neural_recommender.py
+    - src/retail_recommender/evaluation/ranking_metrics.py
+    - src/retail_recommender/evaluation/reports.py
+    - src/retail_recommender/models/item_knn.py
+    - src/retail_recommender/models/neural_cf.py
+    - src/retail_recommender/models/popularity.py
+    - src/retail_recommender/pipelines/evaluate.py
+    - src/retail_recommender/tracking/mlflow_tracker.py
+    - src/retail_recommender/training/seed.py
+    params:
+    - evaluation.candidate_batch_size
+    - evaluation.exclude_seen_items
+    - evaluation.k
+    - evaluation.maximum_users
+    - item_knn.minimum_similarity
+    - item_knn.n_neighbors
+    - model.dropout
+    - model.embedding_dim
+    - model.hidden_layers
+    - model.name
+    - training.random_seed
+    outs:
+    - artifacts/reports/evaluation

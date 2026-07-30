@@ -3,6 +3,7 @@ interim_events_path: data/interim/events_clean.parquet
 validation_report_path: artifacts/reports/data_validation.json
 
 train_data_path: data/processed/train.parquet
+train_positive_path: data/processed/train_positive.parquet
 validation_data_path: data/processed/validation.parquet
 test_data_path: data/processed/test.parquet
 

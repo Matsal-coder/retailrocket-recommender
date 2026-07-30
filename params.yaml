@@ -43,3 +43,13 @@ model:
     - 64
     - 32
   dropout: 0.2
+
+evaluation:
+  k: 10
+  candidate_batch_size: 4096
+  exclude_seen_items: true
+  maximum_users: 50
+
+item_knn:
+  n_neighbors: 50
+  minimum_similarity: 0.0

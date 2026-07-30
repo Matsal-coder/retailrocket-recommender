@@ -111,6 +111,7 @@ def make_params() -> dict[str, object]:
 def make_data_config(
     interim_path: Path,
     train_path: Path,
+    positive_train_path: Path,
     validation_path: Path,
     test_path: Path,
     user_encoder_path: Path,
@@ -121,6 +122,7 @@ def make_data_config(
     return {
         "interim_events_path": str(interim_path),
         "train_data_path": str(train_path),
+        "train_positive_path": str(positive_train_path),
         "validation_data_path": str(validation_path),
         "test_data_path": str(test_path),
         "user_encoder_path": str(user_encoder_path),
@@ -146,6 +148,7 @@ def test_feature_engineering_pipeline_generates_outputs(
     """It should generate processed splits, encoders and report."""
     interim_path = tmp_path / "data" / "interim" / "events_clean.parquet"
     train_path = tmp_path / "data" / "processed" / "train.parquet"
+    positive_train_path = tmp_path / "data" / "processed" / "train_positive.parquet"
     validation_path = tmp_path / "data" / "processed" / "validation.parquet"
     test_path = tmp_path / "data" / "processed" / "test.parquet"
 
@@ -165,6 +168,7 @@ def test_feature_engineering_pipeline_generates_outputs(
     data_config = make_data_config(
         interim_path=interim_path,
         train_path=train_path,
+        positive_train_path=positive_train_path,
         validation_path=validation_path,
         test_path=test_path,
         user_encoder_path=user_encoder_path,
@@ -191,6 +195,7 @@ def test_feature_engineering_pipeline_generates_outputs(
     assert_output_files_exist(
         [
             train_path,
+            positive_train_path,
             validation_path,
             test_path,
             user_encoder_path,
@@ -202,6 +207,7 @@ def test_feature_engineering_pipeline_generates_outputs(
     train = pd.read_parquet(train_path)
     validation = pd.read_parquet(validation_path)
     test = pd.read_parquet(test_path)
+    positive_train = pd.read_parquet(positive_train_path)
 
     assert train.columns.tolist() == EXPECTED_TRAIN_COLUMNS
     assert validation.columns.tolist() == EXPECTED_EVALUATION_COLUMNS
@@ -209,8 +215,14 @@ def test_feature_engineering_pipeline_generates_outputs(
     assert not train.empty
     assert not validation.empty
     assert not test.empty
+    assert not positive_train.empty
 
     assert set(train["target"].unique()) == {0, 1}
+    assert set(positive_train["target"]) == {1}
+    assert {
+        "interaction_score",
+        "interaction_count",
+    }.issubset(positive_train.columns)
     assert validation["target"].eq(1).all()
     assert test["target"].eq(1).all()
 

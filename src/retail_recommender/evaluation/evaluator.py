@@ -54,6 +54,7 @@ class RecommenderEvaluator:
         k: int,
         catalog_items: Collection[int],
         exclude_seen_items: bool = True,
+        maximum_users: int | None = None,
     ) -> None:
         """Initialize the evaluator.
 
@@ -70,6 +71,10 @@ class RecommenderEvaluator:
             msg = "k must be greater than zero"
             raise ValueError(msg)
 
+        if maximum_users is not None and maximum_users <= 0:
+            msg = "maximum_users must be greater than zero"
+            raise ValueError(msg)
+
         catalog_set = set(catalog_items)
 
         if not catalog_set:
@@ -80,6 +85,7 @@ class RecommenderEvaluator:
         self.k = k
         self.catalog_items = catalog_set
         self.exclude_seen_items = exclude_seen_items
+        self.maximum_users = maximum_users
 
     def evaluate(
         self,
@@ -103,6 +109,9 @@ class RecommenderEvaluator:
             for user_id, relevant_items in relevant_items_by_user.items()
             if relevant_items
         ]
+
+        if self.maximum_users is not None:
+            evaluation_users = evaluation_users[: self.maximum_users]
 
         if not evaluation_users:
             msg = "relevant_items_by_user must contain evaluable users"

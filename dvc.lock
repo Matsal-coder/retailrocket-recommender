@@ -5,8 +5,8 @@ stages:
     deps:
     - path: configs/data.yaml
       hash: md5
-      md5: 24017f66a4a766b4b2c2fc8cc99844af
-      size: 734
+      md5: 2ef0f49eb8fd9ab4c96bdbd808afee48
+      size: 794
     - path: data/raw/events.csv
       hash: md5
       md5: fddaf7c1c6a9df23a726500a08ffdd7e
@@ -42,8 +42,8 @@ stages:
       size: 498
     - path: configs/data.yaml
       hash: md5
-      md5: 24017f66a4a766b4b2c2fc8cc99844af
-      size: 734
+      md5: 2ef0f49eb8fd9ab4c96bdbd808afee48
+      size: 794
     - path: data/raw/events.csv
       hash: md5
       md5: fddaf7c1c6a9df23a726500a08ffdd7e
@@ -82,19 +82,19 @@ stages:
     outs:
     - path: data/interim/events_clean.parquet
       hash: md5
-      md5: 5ae99d1ea175c0965b4f7fcc2783468b
-      size: 49997151
+      md5: 5c8634de390ed8718716ae8a4b424abb
+      size: 55174047
   feature_engineering:
     cmd: poetry run python -m retail_recommender.pipelines.feature_engineering
     deps:
     - path: configs/data.yaml
       hash: md5
-      md5: 24017f66a4a766b4b2c2fc8cc99844af
-      size: 734
+      md5: 2ef0f49eb8fd9ab4c96bdbd808afee48
+      size: 794
     - path: data/interim/events_clean.parquet
       hash: md5
-      md5: 5ae99d1ea175c0965b4f7fcc2783468b
-      size: 49997151
+      md5: 5c8634de390ed8718716ae8a4b424abb
+      size: 55174047
     - path: src/retail_recommender/features/id_encoder.py
       hash: md5
       md5: 11c167183df4f0c90e0fb6242753fd1f
@@ -113,8 +113,8 @@ stages:
       size: 5509
     - path: src/retail_recommender/pipelines/feature_engineering.py
       hash: md5
-      md5: 865fc76e35ea217c4b1be9cccdf9613c
-      size: 12322
+      md5: 6a72c75a9e6342e5f56bcb3b9a184dce
+      size: 12537
     params:
       params.yaml:
         interaction_filtering.minimum_item_interactions: 2
@@ -141,16 +141,20 @@ stages:
       size: 743
     - path: data/processed/test.parquet
       hash: md5
-      md5: 31fc99a01bc6219954502e189b68602f
-      size: 569785
+      md5: 516a10f41bb2f7cfcb246343056d869e
+      size: 612551
     - path: data/processed/train.parquet
       hash: md5
-      md5: 1070ae7a973e58378ea08359faed4329
+      md5: 58529c5de2df62f759773382329105e9
       size: 23270721
+    - path: data/processed/train_positive.parquet
+      hash: md5
+      md5: 9a2220e1c1d520a11861be81af04f205
+      size: 13078872
     - path: data/processed/validation.parquet
       hash: md5
-      md5: 64a3d884b7944965d749211c804b4d33
-      size: 812243
+      md5: 70f7f4c63173cc6870429756a92e42a5
+      size: 869878
   train:
     cmd: poetry run python -m retail_recommender.pipelines.train
     deps:
@@ -164,12 +168,12 @@ stages:
       size: 180
     - path: data/processed/train.parquet
       hash: md5
-      md5: 1070ae7a973e58378ea08359faed4329
+      md5: 58529c5de2df62f759773382329105e9
       size: 23270721
     - path: data/processed/validation.parquet
       hash: md5
-      md5: 64a3d884b7944965d749211c804b4d33
-      size: 812243
+      md5: 70f7f4c63173cc6870429756a92e42a5
+      size: 869878
     - path: src/retail_recommender/models/neural_cf.py
       hash: md5
       md5: 18aabd4d5e5e3cfcb3b1a28f251fff85
@@ -223,3 +227,87 @@ stages:
       hash: md5
       md5: 3706925a4e30501110df57a03968eb62
       size: 1327
+  evaluate:
+    cmd: poetry run python -m retail_recommender.pipelines.evaluate
+    deps:
+    - path: artifacts/models/best_model.pt
+      hash: md5
+      md5: 49d5af99a2a7645311d0fa3ba77d9518
+      size: 34650935
+    - path: artifacts/reports/train_metrics.json
+      hash: md5
+      md5: 3706925a4e30501110df57a03968eb62
+      size: 1327
+    - path: configs/evaluation.yaml
+      hash: md5
+      md5: 65a94831ef25cc7394f705358a67c9da
+      size: 591
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 516a10f41bb2f7cfcb246343056d869e
+      size: 612551
+    - path: data/processed/train_positive.parquet
+      hash: md5
+      md5: 9a2220e1c1d520a11861be81af04f205
+      size: 13078872
+    - path: src/retail_recommender/evaluation/evaluator.py
+      hash: md5
+      md5: 0b4dfbb5eb6aaf4f62329461de9b9497
+      size: 5641
+    - path: src/retail_recommender/evaluation/neural_recommender.py
+      hash: md5
+      md5: 2102a59c58cbb78eb61c7c2dfee39929
+      size: 3234
+    - path: src/retail_recommender/evaluation/ranking_metrics.py
+      hash: md5
+      md5: a73a5e4e2ff5fdb7f3934638beefe00a
+      size: 6596
+    - path: src/retail_recommender/evaluation/reports.py
+      hash: md5
+      md5: b16691b1bcc47c6e3f58154a92e50671
+      size: 2772
+    - path: src/retail_recommender/models/item_knn.py
+      hash: md5
+      md5: 36292a4811ac1a83cc00a2ec32988d6e
+      size: 13098
+    - path: src/retail_recommender/models/neural_cf.py
+      hash: md5
+      md5: 18aabd4d5e5e3cfcb3b1a28f251fff85
+      size: 7308
+    - path: src/retail_recommender/models/popularity.py
+      hash: md5
+      md5: 94373566832d626fbed6fcd8165e96c3
+      size: 6197
+    - path: src/retail_recommender/pipelines/evaluate.py
+      hash: md5
+      md5: c1606e87b9252f06080f0094ef4f48b9
+      size: 15049
+    - path: src/retail_recommender/tracking/mlflow_tracker.py
+      hash: md5
+      md5: 424c58d6afc8a7bf4fe7a5165b8fcbe6
+      size: 6409
+    - path: src/retail_recommender/training/seed.py
+      hash: md5
+      md5: 6500d5a44aa5bcf2e1ae62b938582495
+      size: 1092
+    params:
+      params.yaml:
+        evaluation.candidate_batch_size: 4096
+        evaluation.exclude_seen_items: true
+        evaluation.k: 10
+        evaluation.maximum_users: 50
+        item_knn.minimum_similarity: 0.0
+        item_knn.n_neighbors: 50
+        model.dropout: 0.2
+        model.embedding_dim: 32
+        model.hidden_layers:
+        - 64
+        - 32
+        model.name: neural_cf
+        training.random_seed: 1729
+    outs:
+    - path: artifacts/reports/evaluation
+      hash: md5
+      md5: 830e8a24fcaa656c59c86402fcc0faf6.dir
+      size: 1090
+      nfiles: 4
