@@ -1,7 +1,2 @@
 model:
-  name: neural_cf
-  embedding_dim: 32
-  hidden_layers:
-    - 64
-    - 32
-  dropout: 0.2
+  checkpoint_path: artifacts/models/best_model.pt

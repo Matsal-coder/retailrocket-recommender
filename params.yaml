@@ -28,3 +28,18 @@ split:
 training:
   random_seed: 1729
   negative_samples_per_positive: 4
+  batch_size: 1024
+  learning_rate: 0.001
+  epochs: 30
+  patience: 5
+  minimum_delta: 0.0
+  weight_decay: 0.0
+  device: auto
+
+model:
+  name: neural_cf
+  embedding_dim: 32
+  hidden_layers:
+    - 64
+    - 32
+  dropout: 0.2

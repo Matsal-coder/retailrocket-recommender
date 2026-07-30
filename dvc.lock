@@ -151,3 +151,75 @@ stages:
       hash: md5
       md5: 64a3d884b7944965d749211c804b4d33
       size: 812243
+  train:
+    cmd: poetry run python -m retail_recommender.pipelines.train
+    deps:
+    - path: configs/model.yaml
+      hash: md5
+      md5: 675f6db08bd0b143a66633412ea8d293
+      size: 59
+    - path: configs/training.yaml
+      hash: md5
+      md5: 8373416a5b82570f184c82dd048c0ca4
+      size: 180
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: 1070ae7a973e58378ea08359faed4329
+      size: 23270721
+    - path: data/processed/validation.parquet
+      hash: md5
+      md5: 64a3d884b7944965d749211c804b4d33
+      size: 812243
+    - path: src/retail_recommender/models/neural_cf.py
+      hash: md5
+      md5: 18aabd4d5e5e3cfcb3b1a28f251fff85
+      size: 7308
+    - path: src/retail_recommender/pipelines/train.py
+      hash: md5
+      md5: 7b4ad4037801ecdba964fbef84d78873
+      size: 12546
+    - path: src/retail_recommender/tracking/mlflow_tracker.py
+      hash: md5
+      md5: 424c58d6afc8a7bf4fe7a5165b8fcbe6
+      size: 6409
+    - path: src/retail_recommender/training/dataset.py
+      hash: md5
+      md5: cc04d17eb40785c5d1c478a748090759
+      size: 5003
+    - path: src/retail_recommender/training/early_stopping.py
+      hash: md5
+      md5: 9cb783b45d00837af71dc6ed57e34970
+      size: 1940
+    - path: src/retail_recommender/training/seed.py
+      hash: md5
+      md5: 6500d5a44aa5bcf2e1ae62b938582495
+      size: 1092
+    - path: src/retail_recommender/training/trainer.py
+      hash: md5
+      md5: 5c3231f25a4976e4bdc98cd0878d8bb3
+      size: 8434
+    params:
+      params.yaml:
+        model.dropout: 0.2
+        model.embedding_dim: 32
+        model.hidden_layers:
+        - 64
+        - 32
+        model.name: neural_cf
+        training.batch_size: 1024
+        training.device: auto
+        training.epochs: 30
+        training.learning_rate: 0.001
+        training.minimum_delta: 0.0
+        training.patience: 5
+        training.random_seed: 1729
+        training.weight_decay: 0.0
+    outs:
+    - path: artifacts/models/best_model.pt
+      hash: md5
+      md5: 49d5af99a2a7645311d0fa3ba77d9518
+      size: 34650935
+    - path: artifacts/reports/train_metrics.json
+      hash: md5
+      md5: 3706925a4e30501110df57a03968eb62
+      size: 1327

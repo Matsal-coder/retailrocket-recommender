@@ -57,3 +57,33 @@ stages:
     - data/processed/test.parquet
     - data/processed/train.parquet
     - data/processed/validation.parquet
+  train:
+    cmd: poetry run python -m retail_recommender.pipelines.train
+    deps:
+    - configs/model.yaml
+    - configs/training.yaml
+    - data/processed/train.parquet
+    - data/processed/validation.parquet
+    - src/retail_recommender/models/neural_cf.py
+    - src/retail_recommender/pipelines/train.py
+    - src/retail_recommender/tracking/mlflow_tracker.py
+    - src/retail_recommender/training/dataset.py
+    - src/retail_recommender/training/early_stopping.py
+    - src/retail_recommender/training/seed.py
+    - src/retail_recommender/training/trainer.py
+    params:
+    - model.dropout
+    - model.embedding_dim
+    - model.hidden_layers
+    - model.name
+    - training.random_seed
+    - training.batch_size
+    - training.device
+    - training.epochs
+    - training.learning_rate
+    - training.minimum_delta
+    - training.patience
+    - training.weight_decay
+    outs:
+    - artifacts/models/best_model.pt
+    - artifacts/reports/train_metrics.json
