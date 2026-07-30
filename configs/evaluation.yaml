@@ -8,3 +8,5 @@ evaluation:
     - map_at_10
     - coverage_at_10
   exclude_seen_items: true
+  test_metrics_path: artifacts/reports/test_metrics.json
+  model_comparison_path: artifacts/reports/model_comparison.csv
