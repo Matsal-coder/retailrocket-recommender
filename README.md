@@ -1,206 +1,166 @@
 # RetailRocket Recommender
 
-Sistema de recomendação de produtos para e-commerce baseado em comportamento de navegação dos usuários.
+Sistema de recomendação Top-K para e-commerce construído a partir do comportamento implícito dos usuários no dataset RetailRocket.
 
-Este projeto faz parte do Tech Challenge da Fase 2 da pós-graduação em Machine Learning Engineering e utiliza o dataset RetailRocket, principalmente o arquivo `events.csv`, com eventos de interação em e-commerce.
+O projeto faz parte do Tech Challenge da Fase 2 da pós-graduação em Machine Learning Engineering e foi desenvolvido com foco em engenharia de software, reprodutibilidade, rastreabilidade de dados, experimentação e comparação entre modelos de recomendação.
 
 ## Formulação do problema
 
-Dado o histórico de interações de usuários com produtos em um e-commerce, construir um modelo capaz de recomendar os Top-K produtos mais relevantes para cada usuário.
+Dado o histórico de interações entre usuários e produtos, o sistema deve recomendar os K itens mais relevantes para cada usuário.
 
-A abordagem adotada será de recomendação com feedback implícito, em que diferentes tipos de eventos recebem pesos distintos conforme a força do sinal de interesse do usuário.
-
-Pesos iniciais sugeridos:
+O dataset não possui avaliações explícitas, como notas de uma a cinco estrelas. Por isso, o projeto utiliza feedback implícito. Cada evento representa um sinal de interesse com intensidade diferente:
 
 | Evento | Peso |
 | --- | ---: |
-| `view` | 1 |
-| `addtocart` | 3 |
-| `transaction` | 5 |
+| `view` | 1.0 |
+| `addtocart` | 3.0 |
+| `transaction` | 5.0 |
 
-## Objetivos técnicos do projeto
+Os pesos são configurados em `params.yaml`, na seção `preprocessing.event_weights`, e não ficam fixados no código de produção.
 
-O projeto será construído com foco em boas práticas de engenharia de software, MLOps e reprodutibilidade.
+## Objetivos técnicos
 
-Entre os principais requisitos técnicos estão:
+O projeto adota:
 
-- estrutura de projeto com Clean Code;
-- gerenciamento de dependências com Poetry;
-- dependências de produção e desenvolvimento separadas;
-- lock file versionado;
-- lint e formatação com Ruff;
-- testes automatizados com Pytest;
-- hooks de qualidade com pre-commit;
-- configuração externa via `.env`;
-- logging padronizado;
-- versionamento de dados e pipelines com DVC;
-- tracking de experimentos e Model Registry com MLflow;
-- modelos de recomendação com Scikit-Learn e PyTorch;
-- containerização com Docker.
+- Poetry para gerenciamento de dependências;
+- Ruff para lint e formatação;
+- Pytest para testes unitários e de integração;
+- pre-commit para validações antes dos commits;
+- Pydantic Settings para variáveis de ambiente;
+- DVC para versionamento de dados, artefatos e pipelines;
+- MLflow para tracking de experimentos;
+- Scikit-Learn e SciPy para os baselines;
+- PyTorch para o modelo neural;
+- configuração externa por YAML e `.env`;
+- seeds reprodutíveis;
+- type hints e docstrings;
+- branches separadas por funcionalidade;
+- testes para cada nova funcionalidade.
 
-## Estrutura atual do projeto
+## Estado atual
+
+Os quatro primeiros blocos do projeto estão concluídos:
+
+1. fundação técnica;
+2. dataset, DVC inicial, loader e validação;
+3. preprocessamento e feature engineering;
+4. modelos, treinamento, avaliação, MLflow e integração final com DVC.
+
+O pipeline atual já permite:
+
+- validar o dataset bruto;
+- transformar os eventos em feedback implícito;
+- gerar interações usuário-item;
+- executar split temporal;
+- criar encoders;
+- gerar negativos para o treino neural;
+- treinar um Neural Collaborative Filtering;
+- avaliar Popularity, Item-KNN e Neural CF;
+- calcular métricas Top-K;
+- registrar treinamento e avaliação no MLflow;
+- reproduzir todo o fluxo com DVC.
+
+## Estrutura principal
 
 ```text
 retailrocket-recommender/
 ├── src/
 │   └── retail_recommender/
 │       ├── config/
-│       │   ├── settings.py
-│       │   └── logging.py
+│       │   ├── logging.py
+│       │   └── settings.py
 │       ├── data/
 │       │   ├── loaders/
-│       │   │   └── retailrocket_loader.py
-│       │   ├── validators/
-│       │   │   └── events_validator.py
-│       │   └── preprocessors/
+│       │   ├── preprocessors/
+│       │   └── validators/
 │       ├── features/
+│       │   ├── id_encoder.py
+│       │   ├── interaction_builder.py
+│       │   ├── negative_sampling.py
+│       │   └── temporal_split.py
 │       ├── models/
+│       │   ├── base.py
+│       │   ├── factory.py
+│       │   ├── popularity.py
+│       │   ├── item_knn.py
+│       │   └── neural_cf.py
 │       ├── training/
+│       │   ├── dataset.py
+│       │   ├── early_stopping.py
+│       │   ├── seed.py
+│       │   └── trainer.py
 │       ├── evaluation/
+│       │   ├── evaluator.py
+│       │   ├── neural_recommender.py
+│       │   ├── ranking_metrics.py
+│       │   └── reports.py
 │       ├── tracking/
+│       │   └── mlflow_tracker.py
 │       └── pipelines/
-│           └── validate_data.py
+│           ├── validate_data.py
+│           ├── preprocess.py
+│           ├── feature_engineering.py
+│           ├── train.py
+│           └── evaluate.py
 ├── configs/
-│   └── data.yaml
+│   ├── data.yaml
+│   ├── model.yaml
+│   ├── training.yaml
+│   └── evaluation.yaml
 ├── data/
 │   ├── raw/
-│   │   └── events.csv.dvc
 │   ├── interim/
 │   └── processed/
 ├── artifacts/
-│   ├── models/
 │   ├── encoders/
+│   ├── models/
 │   └── reports/
-│       └── data_validation.json
 ├── docs/
+│   └── architecture.md
 ├── tests/
 │   ├── unit/
-│   │   └── data/
-│   │       ├── loaders/
-│   │       └── validators/
 │   └── integration/
-│       └── pipelines/
-├── scripts/
 ├── dvc.yaml
 ├── dvc.lock
 ├── params.yaml
 ├── pyproject.toml
 ├── poetry.lock
 ├── .env.example
-├── .gitignore
-├── .dockerignore
-├── .dvcignore
-├── .pre-commit-config.yaml
-├── README.md
-└── Makefile
+└── README.md
 ```
-
-## Principais diretórios
-
-### `src/retail_recommender/`
-
-Contém o código-fonte principal da aplicação.
-
-### `configs/`
-
-Contém arquivos de configuração em YAML.
-
-Atualmente, o arquivo principal é:
-
-```text
-configs/data.yaml
-```
-
-Ele define caminhos e parâmetros básicos para validação do dataset.
-
-### `data/`
-
-Contém os dados locais do projeto.
-
-A pasta é dividida em:
-
-- `data/raw/`: dados brutos;
-- `data/interim/`: dados intermediários;
-- `data/processed/`: dados prontos para modelagem.
-
-Os dados reais não devem ser versionados diretamente no Git.
-
-O arquivo bruto principal esperado é:
-
-```text
-data/raw/events.csv
-```
-
-Esse arquivo é versionado pelo DVC por meio de:
-
-```text
-data/raw/events.csv.dvc
-```
-
-### `artifacts/`
-
-Contém artefatos gerados pelo projeto, como relatórios, modelos e encoders.
-
-Após a validação dos dados, o relatório é salvo em:
-
-```text
-artifacts/reports/data_validation.json
-```
-
-### `tests/`
-
-Contém testes unitários e de integração.
-
-Atualmente existem testes para:
-
-- configurações;
-- logging;
-- validação de ambiente;
-- loader do RetailRocket;
-- validador estrutural do `events.csv`;
-- pipeline de validação dos dados.
-
-### `scripts/`
-
-Contém scripts auxiliares de desenvolvimento e operação.
 
 ## Requisitos
 
-- Python >= 3.11 e < 3.13
-- Poetry
-- Git
-- DVC
+- Python 3.12;
+- Poetry;
+- Git;
+- DVC.
+
+O projeto foi validado no Windows com Python 3.12.2.
 
 ## Instalação
-
-Clone o repositório:
 
 ```bash
 git clone <URL_DO_REPOSITORIO>
 cd retailrocket-recommender
-```
-
-Instale as dependências:
-
-```bash
 poetry install
 ```
 
-Crie o arquivo local de variáveis de ambiente:
+Crie o arquivo local de ambiente:
 
 ```bash
 cp .env.example .env
 ```
 
-No Windows PowerShell:
+No PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-## Configuração via ambiente
+## Variáveis de ambiente
 
-As configurações principais são lidas a partir de variáveis de ambiente.
+As variáveis operacionais ficam em `.env`.
 
 Exemplo:
 
@@ -213,374 +173,44 @@ RAW_DATA_DIR=data/raw
 INTERIM_DATA_DIR=data/interim
 PROCESSED_DATA_DIR=data/processed
 ARTIFACTS_DIR=artifacts
+MLFLOW_TRACKING_URI=sqlite:///mlflow.db
+MLFLOW_EXPERIMENT_NAME=retailrocket-recommender
 ```
 
-O arquivo `.env.example` deve ser versionado.
+O `.env.example` é versionado. O `.env` local não deve ser versionado.
 
-O arquivo `.env` local não deve ser versionado.
-
-## Dataset
-
-O dataset escolhido é o RetailRocket.
-
-Neste projeto, o principal arquivo utilizado é:
+A random seed não é mais variável de ambiente. Sua fonte única é:
 
 ```text
-events.csv
+params.yaml → training.random_seed
 ```
 
-Ele contém eventos de interação entre usuários e produtos, como:
+## Configuração centralizada
 
-- `view`;
-- `addtocart`;
-- `transaction`.
+O projeto separa caminhos operacionais de parâmetros experimentais.
 
-O arquivo bruto deve estar localizado em:
+### `params.yaml`
 
-```text
-data/raw/events.csv
-```
+Contém parâmetros que alteram comportamento, treino ou avaliação e que devem ser rastreados pelo DVC.
 
-## Contrato esperado do `events.csv`
-
-O arquivo `events.csv` deve conter, no mínimo, as seguintes colunas:
-
-| Coluna | Descrição |
-| --- | --- |
-| `timestamp` | momento do evento em timestamp Unix em milissegundos |
-| `visitorid` | identificador do usuário/visitante |
-| `event` | tipo de evento realizado |
-| `itemid` | identificador do item/produto |
-| `transactionid` | identificador da transação, quando houver |
-
-Eventos esperados:
-
-```text
-view
-addtocart
-transaction
-```
-
-## Versionamento de dados com DVC
-
-Os dados brutos não são versionados diretamente pelo Git.
-
-O arquivo:
-
-```text
-data/raw/events.csv
-```
-
-é rastreado pelo DVC por meio do arquivo:
-
-```text
-data/raw/events.csv.dvc
-```
-
-Após clonar o repositório e instalar as dependências, recupere os dados com:
-
-```bash
-poetry run dvc pull
-```
-
-Para verificar o status dos dados e pipelines:
-
-```bash
-poetry run dvc status
-```
-
-Resultado esperado quando tudo está sincronizado:
-
-```text
-Data and pipelines are up to date.
-```
-
-## Configuração dos dados
-
-As configurações principais da validação estão em:
-
-```text
-configs/data.yaml
-```
-
-Exemplo:
+Principais seções:
 
 ```yaml
-raw_events_path: data/raw/events.csv
-validation_report_path: artifacts/reports/data_validation.json
-
-required_columns:
-  - timestamp
-  - visitorid
-  - event
-  - itemid
-  - transactionid
-
-allowed_events:
-  - view
-  - addtocart
-  - transaction
-
-minimum_interactions: 10000
-minimum_users: 100
-minimum_items: 100
-```
-
-Os parâmetros também são registrados em:
-
-```text
-params.yaml
-```
-
-Esses parâmetros são usados pelo DVC para rastrear mudanças relevantes no pipeline.
-
-## Loader do RetailRocket
-
-O loader do dataset está implementado em:
-
-```text
-src/retail_recommender/data/loaders/retailrocket_loader.py
-```
-
-Responsabilidades do loader:
-
-- receber o caminho do arquivo `events.csv`;
-- verificar se o arquivo existe;
-- carregar o CSV como `pandas.DataFrame`;
-- falhar com erro claro caso o arquivo esteja ausente ou vazio.
-
-O loader não realiza preprocessamento, agregação, split temporal ou transformação de feedback implícito.
-
-## Validador do dataset
-
-O validador estrutural está implementado em:
-
-```text
-src/retail_recommender/data/validators/events_validator.py
-```
-
-A validação verifica:
-
-- existência das colunas obrigatórias;
-- se `timestamp`, `visitorid`, `event` e `itemid` não estão totalmente vazios;
-- se os eventos pertencem ao conjunto esperado;
-- se há pelo menos 10.000 interações no dataset real;
-- se é possível converter `timestamp` para datetime;
-- se há usuários e itens suficientes para um problema de recomendação;
-- se o resultado da validação pode ser convertido para dicionário e salvo em JSON.
-
-O validador retorna um objeto estruturado com:
-
-- `is_valid`;
-- `errors`;
-- `warnings`;
-- `summary`.
-
-## Pipeline de dados e feature engineering
-
-O projeto utiliza DVC para reproduzir o processamento dos dados desde o dataset bruto até os conjuntos preparados para treinamento e avaliação.
-
-O pipeline atual contém três stages principais:
-
-validate_data
-      ↓
-preprocess
-      ↓
-feature_engineering
-
-### validate_data
-
-Valida o arquivo bruto events.csv, verificando:
-
-- existência das colunas obrigatórias;
-- tipos e valores válidos;
-- eventos suportados;
-- quantidade mínima de interações;
-- quantidade mínima de usuários;
-- quantidade mínima de itens.
-
-O stage gera:
-
-artifacts/reports/data_validation.json
-
-### preprocess
-
-Converte os eventos brutos em um formato padronizado para feedback implícito.
-
-As principais transformações são:
-
-- remoção de registros inválidos;
-- conversão do timestamp;
-- criação da coluna temporal;
-- normalização dos nomes das colunas;
-- filtragem dos eventos suportados;
-- aplicação de pesos por tipo de evento.
-
-Pesos utilizados:
-
-- view: 1.0
-- addtocart: 3.0
-- transaction: 5.0
-
-O stage gera:
-
-data/interim/events_clean.parquet
-
-### feature_engineering
-
-Constrói os dados necessários para treinamento e avaliação do sistema de recomendação.
-
-O stage executa:
-
-1. agregação das interações por usuário e item;
-2. filtragem de usuários e itens pouco frequentes;
-3. split temporal em treino, validação e teste;
-4. ajuste dos encoders somente no treino;
-5. transformação dos IDs originais em índices contínuos;
-6. geração de exemplos negativos somente para treino;
-7. persistência dos conjuntos processados;
-8. persistência dos encoders;
-9. geração de relatório de feature engineering.
-
-## Artefatos gerados
-
-Após executar o pipeline completo, os principais outputs são:
-
-data/processed/train.parquet
-data/processed/validation.parquet
-data/processed/test.parquet
-
-artifacts/encoders/user_encoder.pkl
-artifacts/encoders/item_encoder.pkl
-
-artifacts/reports/data_validation.json
-artifacts/reports/feature_engineering_report.json
-
-### Conjunto de treino
-
-O arquivo train.parquet contém:
-
-user_idx
-item_idx
-target
-
-O target assume:
-
-- 1 para interações positivas observadas;
-- 0 para pares negativos amostrados.
-
-### Conjuntos de validação e teste
-
-Os arquivos de validação e teste mantêm as colunas necessárias para avaliação posterior:
-
-user_id
-item_id
-user_idx
-item_idx
-interaction_score
-interaction_count
-last_interaction_at
-target
-
-Nesta etapa, validação e teste contêm apenas interações positivas reais.
-
-## Split temporal
-
-As interações são ordenadas pela coluna last_interaction_at e divididas em:
-
-- 70% para treino;
-- 15% para validação;
-- 15% para teste.
-
-O split temporal foi escolhido para reproduzir o cenário de produção, no qual o modelo aprende com o passado e é avaliado em interações posteriores.
-
-Essa abordagem reduz o risco de vazamento temporal, mas pode expor mudanças legítimas de comportamento, sazonalidade e drift.
-
-Por exemplo, produtos sazonais podem ter padrões diferentes entre os períodos de treino e teste. Por isso, o relatório de feature engineering registra os intervalos temporais de cada conjunto.
-
-### Cold start
-
-Os encoders são ajustados exclusivamente com o conjunto de treino.
-
-Usuários e itens que aparecem somente em validação ou teste não possuem índices conhecidos pelo modelo. Nesta versão, essas interações são removidas dos conjuntos de avaliação.
-
-O relatório registra:
-
-validation_removed_unknowns
-test_removed_unknowns
-
-Essa política significa que a avaliação inicial cobre apenas usuários e itens conhecidos no treino.
-
-## Encoders de usuários e itens
-
-Os identificadores originais do RetailRocket podem ser esparsos e não contínuos.
-
-Por isso, o pipeline cria índices inteiros contínuos:
-
-user_id → user_idx
-item_id → item_idx
-
-Exemplo:
-
-user_id 105 → user_idx 0
-user_id 900 → user_idx 1
-
-Os índices começam em zero e são compatíveis com camadas de embedding do PyTorch.
-
-Os encoders são ajustados apenas no treino e persistidos em:
-
-artifacts/encoders/user_encoder.pkl
-artifacts/encoders/item_encoder.pkl
-
-Valores desconhecidos recebem temporariamente o índice -1, mas esses valores não são persistidos nos conjuntos finais.
-
-## Negative sampling
-
-O RetailRocket contém feedback implícito.
-
-Uma interação observada indica algum nível de interesse do usuário, mas a ausência de interação não representa rejeição explícita.
-
-Os pares observados são tratados como positivos:
-
-target = 1
-
-Para que o modelo aprenda a distinguir itens relevantes de itens sem evidência de interesse, o pipeline gera pares negativos:
-
-target = 0
-
-Um par negativo é formado por:
-
-- um usuário conhecido;
-- um item conhecido;
-- ausência de interação positiva entre eles no conjunto de treino.
-
-O pipeline nunca transforma um par positivo conhecido em negativo.
-
-A configuração inicial utiliza quatro negativos para cada positivo.
-
-Essa proporção é um hiperparâmetro e pode ser alterada em params.yaml.
-
-A razão 4:1 foi escolhida como baseline por oferecer mais contraste ao modelo sem aumentar excessivamente o tamanho do conjunto de treino.
-
-Os negativos são gerados somente para treino. Validação e teste mantêm as interações positivas reais para futura avaliação Top-K.
-
-### Desempenho do negative sampling
-
-A implementação utiliza amostragem por rejeição.
-
-Em vez de construir, para cada usuário, uma lista contendo todos os itens disponíveis do catálogo, o algoritmo:
-
-1. sorteia índices diretamente no intervalo de itens conhecidos;
-2. rejeita os itens que já são positivos para o usuário;
-3. continua até atingir a quantidade configurada de negativos.
-
-Essa abordagem evita percorrer todo o catálogo para cada usuário e reduz significativamente o custo do processamento em datasets grandes.
-
-## Principais parâmetros
-
-Os principais parâmetros do pipeline estão em params.yaml.
-
-Exemplo:
+data:
+  minimum_interactions: 10000
+  minimum_users: 100
+  minimum_items: 100
+
+preprocessing:
+  strategy: implicit_feedback
+  allowed_event_types:
+    - view
+    - addtocart
+    - transaction
+  event_weights:
+    view: 1.0
+    addtocart: 3.0
+    transaction: 5.0
 
 interaction_filtering:
   minimum_user_interactions: 2
@@ -594,424 +224,141 @@ split:
   filter_unknown_entities: true
 
 training:
+  random_seed: 1729
   negative_samples_per_positive: 4
-  random_seed: <seed configurada no projeto>
+  batch_size: 1024
+  learning_rate: 0.001
+  epochs: 30
+  patience: 5
+  minimum_delta: 0.0
+  weight_decay: 0.0
+  device: auto
 
-A seed é mantida fixa para garantir reprodutibilidade da amostragem negativa e do embaralhamento dos dados de treino.
+model:
+  name: neural_cf
+  embedding_dim: 32
+  hidden_layers:
+    - 64
+    - 32
+  dropout: 0.2
 
-## Executando o pipeline
+evaluation:
+  k: 10
+  candidate_batch_size: 4096
+  exclude_seen_items: true
+  maximum_users: 50
 
-Para reproduzir todos os stages:
-
-poetry run dvc repro
-
-Para executar somente o feature engineering:
-
-poetry run dvc repro feature_engineering
-
-Para visualizar o DAG:
-
-poetry run dvc dag
-
-Para verificar se os dados e artefatos estão atualizados:
-
-poetry run dvc status
-
-Para executar o pipeline diretamente, sem o DVC:
-
-poetry run python -m retail_recommender.pipelines.feature_engineering
-
-A execução direta é útil para desenvolvimento e diagnóstico. Para reprodutibilidade, prefira dvc repro.
-
-## Validação do projeto
-
-Antes de realizar commits ou merges, execute:
-
-poetry run pytest
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run pre-commit run --all-files
-poetry run dvc repro
-poetry run dvc status
-
-Essas verificações garantem:
-
-- testes automatizados;
-- padronização do código;
-- validações do pre-commit;
-- reprodutibilidade dos dados;
-- atualização do dvc.lock.
-
-## Testes
-
-Para rodar todos os testes:
-
-```bash
-poetry run pytest
+item_knn:
+  n_neighbors: 50
+  minimum_similarity: 0.0
 ```
 
-Ou:
+As antigas chaves `primary_metric` e `metrics` foram removidas porque não eram consumidas pelo pipeline e duplicavam o K nos nomes das métricas.
 
-```bash
-make test
-```
+### `configs/data.yaml`
 
-Para rodar testes com cobertura:
+É a fonte única para caminhos de datasets, encoders e relatórios das etapas de dados.
 
-```bash
-poetry run pytest --cov=retail_recommender --cov-report=term-missing
-```
-
-Ou:
-
-```bash
-make test-cov
-```
-
-Para rodar apenas os testes do loader:
-
-```bash
-poetry run pytest tests/unit/data/loaders
-```
-
-Para rodar apenas os testes do validador:
-
-```bash
-poetry run pytest tests/unit/data/validators
-```
-
-Para rodar apenas os testes de integração dos pipelines:
-
-```bash
-poetry run pytest tests/integration/pipelines
-```
-
-## Lint e formatação
-
-Para verificar problemas de lint:
-
-```bash
-poetry run ruff check .
-```
-
-Ou:
-
-```bash
-make lint
-```
-
-Para formatar o código:
-
-```bash
-poetry run ruff format .
-poetry run ruff check . --fix
-```
-
-Ou:
-
-```bash
-make format
-```
-
-## Pre-commit
-
-Instale os hooks:
-
-```bash
-poetry run pre-commit install
-```
-
-Rode todos os hooks manualmente:
-
-```bash
-poetry run pre-commit run --all-files
-```
-
-Ou:
-
-```bash
-make pre-commit
-```
-
-## Validação do ambiente
-
-Rode:
-
-```bash
-poetry run python scripts/validate_env.py
-```
-
-Ou, se tiver `make` disponível:
-
-```bash
-make validate
-```
-
-Resultado esperado:
-
-```text
-Environment validation finished successfully
-```
-
-## Comandos principais de validação do projeto
-
-Antes de abrir Pull Request ou fazer merge, rode:
-
-```bash
-poetry run pytest
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run pre-commit run --all-files
-poetry run dvc repro
-poetry run dvc status
-```
-
-Resultado esperado:
-
-- testes passando;
-- Ruff sem erros;
-- formatação validada;
-- hooks de pre-commit passando;
-- pipeline DVC completo reproduzível;
-- dados e artefatos atualizados.
-
-## Estratégia atual de preparação dos dados
-
-A formulação utiliza recomendação com feedback implícito.
-
-Os eventos recebem os seguintes pesos:
-
-```text
-view = 1
-addtocart = 3
-transaction = 5
-```
-
-Esses pesos são efetivamente aplicados no stage `preprocess` e podem ser ajustados em experimentos futuros.
-
-Depois do preprocessamento, os eventos são agregados por par usuário-item. O resultado contém:
-
-```text
-interaction_score
-interaction_count
-last_interaction_at
-target
-```
-
-O pipeline aplica split temporal global em:
-
-```text
-70% treino
-15% validação
-15% teste
-```
-
-Os encoders são ajustados somente no treino. Usuários e itens desconhecidos são removidos de validação e teste e contabilizados no relatório de feature engineering.
-
-O conjunto de treino combina:
-
-```text
-interações positivas observadas
-+
-quatro negativos amostrados por positivo
-```
-
-Os negativos são gerados somente entre pares usuário-item sem interação positiva conhecida no treino.
-
-## Reprodutibilidade
-
-O projeto usa seeds fixas para reduzir variação entre execuções.
-
-A seed configurada em:
-
-```text
-params.yaml → training.random_seed
-```
-
-Ela é utilizada nas etapas que exigem aleatoriedade, incluindo:
-
-- NumPy;
-- negative sampling;
-- embaralhamento do conjunto de treino;
-- futuros experimentos com Scikit-Learn;
-- futuros modelos em PyTorch.
-
-A reprodução dos dados e artefatos é controlada pelo DVC por meio dos stages:
-
-```text
-validate_data
-      ↓
-preprocess
-      ↓
-feature_engineering
-```
-
-## Status atual
-
-Bloco atual concluído:
-
-```text
-Bloco 3 — Preprocessamento, feature engineering e preparação dos dados
-```
-
-Status:
-
-```text
-Concluído
-```
-
-O projeto já possui uma fundação técnica reproduzível e os conjuntos necessários para iniciar a modelagem.
-
-## O que foi concluído até aqui
-
-### Bloco 1 — Estrutura inicial, Clean Code e ambiente base
-
-Objetivo do bloco:
-
-Criar a fundação técnica do projeto, padronizar o ambiente de desenvolvimento e estabelecer as primeiras garantias de qualidade.
-
-Concluído:
-
-- criação da estrutura inicial de pastas;
-- configuração do Poetry;
-- separação entre dependências de produção e desenvolvimento;
-- versionamento do `poetry.lock`;
-- configuração do Ruff;
-- configuração do Pytest;
-- configuração do pre-commit;
-- criação do `.gitignore`;
-- criação do `.dockerignore`;
-- criação do `.env.example`;
-- criação de settings com Pydantic Settings;
-- criação de logging padronizado;
-- criação de script de validação do ambiente;
-- criação do Makefile;
-- criação dos primeiros testes unitários e de integração;
-- definição de uma seed diferente do valor convencional 42.
-
-Principais entregas:
-
-```text
-pyproject.toml
-poetry.lock
-.pre-commit-config.yaml
-.env.example
-Makefile
-src/retail_recommender/config/settings.py
-src/retail_recommender/config/logging.py
-scripts/validate_env.py
-```
-
-### Bloco 2 — Dataset, DVC inicial, loader e validação dos dados
-
-Objetivo do bloco:
-
-Incorporar o dataset RetailRocket ao projeto, versionar o dado bruto e criar uma camada confiável de carregamento e validação.
-
-Concluído:
-
-- instalação e inicialização do DVC;
-- versionamento de `data/raw/events.csv` com DVC;
-- configuração de remote local do DVC;
-- criação e revisão de `configs/data.yaml`;
-- criação e revisão de `params.yaml`;
-- implementação do loader do RetailRocket;
-- implementação do validador estrutural do `events.csv`;
-- implementação do pipeline `validate_data`;
-- geração do relatório de validação;
-- criação do stage DVC `validate_data`;
-- criação de testes unitários para o loader;
-- criação de testes unitários para o validator;
-- criação de teste de integração para o pipeline;
-- validação com Pytest, Ruff e DVC;
-- documentação das instruções de obtenção e atualização do dataset.
-
-Principais entregas:
-
-```text
-data/raw/events.csv.dvc
-src/retail_recommender/data/loaders/retailrocket_loader.py
-src/retail_recommender/data/validators/events_validator.py
-src/retail_recommender/pipelines/validate_data.py
-artifacts/reports/data_validation.json
-```
-
-### Bloco 3 — Preprocessamento, feature engineering e preparação dos dados
-
-Objetivo do bloco:
-
-Transformar os eventos brutos em conjuntos processados, reproduzíveis e adequados ao treinamento e à avaliação de modelos de recomendação.
-
-Concluído:
-
-- implementação do padrão Strategy para preprocessadores;
-- implementação do preprocessamento de feedback implícito;
-- normalização das colunas do RetailRocket;
-- conversão temporal dos timestamps;
-- aplicação dos pesos `view`, `addtocart` e `transaction`;
-- geração de `events_clean.parquet`;
-- criação do stage DVC `preprocess`;
-- agregação das interações por usuário e item;
-- criação de `interaction_score`, `interaction_count` e `last_interaction_at`;
-- filtragem de usuários e itens pouco frequentes;
-- implementação do split temporal global 70/15/15;
-- tratamento e contabilização de cold start;
-- implementação de encoders próprios para usuários e itens;
-- ajuste dos encoders exclusivamente no treino;
-- persistência e carregamento dos encoders;
-- implementação de negative sampling reprodutível;
-- configuração de quatro negativos por positivo;
-- otimização do sampling por rejeição;
-- geração dos conjuntos de treino, validação e teste;
-- geração do relatório de feature engineering;
-- criação do stage DVC `feature_engineering`;
-- integração dos três stages em um único DAG;
-- criação de testes unitários e de integração;
-- documentação da arquitetura e das limitações atuais.
-
-Principais entregas:
-
-```text
-data/interim/events_clean.parquet
-data/processed/train.parquet
-data/processed/validation.parquet
-data/processed/test.parquet
-
-artifacts/encoders/user_encoder.pkl
-artifacts/encoders/item_encoder.pkl
-
-artifacts/reports/feature_engineering_report.json
-
-src/retail_recommender/data/preprocessors/
-src/retail_recommender/features/
-src/retail_recommender/pipelines/preprocess.py
-src/retail_recommender/pipelines/feature_engineering.py
-docs/architecture.md
-```
-
-## Pipeline concluído até o momento
-
-A sequência reproduzível atual é:
+Principais caminhos:
 
 ```text
 data/raw/events.csv
-        ↓
-validate_data
-        ↓
-artifacts/reports/data_validation.json
-        ↓
-preprocess
-        ↓
 data/interim/events_clean.parquet
-        ↓
+data/processed/train.parquet
+data/processed/train_positive.parquet
+data/processed/validation.parquet
+data/processed/test.parquet
+artifacts/encoders/user_encoder.pkl
+artifacts/encoders/item_encoder.pkl
+artifacts/reports/data_validation.json
+artifacts/reports/feature_engineering_report.json
+```
+
+### `configs/model.yaml`
+
+É a fonte única do checkpoint:
+
+```yaml
+model:
+  checkpoint_path: artifacts/models/best_model.pt
+```
+
+### `configs/training.yaml`
+
+É a fonte única para o relatório de treino:
+
+```yaml
+training:
+  metrics_report_path: artifacts/reports/train_metrics.json
+```
+
+### `configs/evaluation.yaml`
+
+É a fonte única para os outputs da avaliação:
+
+```yaml
+evaluation:
+  output_directory: artifacts/reports/evaluation
+```
+
+Essa divisão evita repetir o mesmo caminho em vários YAMLs.
+
+## Dataset
+
+O projeto utiliza o arquivo:
+
+```text
+data/raw/events.csv
+```
+
+Colunas esperadas:
+
+| Coluna | Descrição |
+| --- | --- |
+| `timestamp` | instante do evento em Unix timestamp, em milissegundos |
+| `visitorid` | identificador do usuário |
+| `event` | tipo do evento |
+| `itemid` | identificador do produto |
+| `transactionid` | identificador da transação, quando houver |
+
+Eventos aceitos:
+
+```text
+view
+addtocart
+transaction
+```
+
+O arquivo bruto é versionado pelo DVC, e não diretamente pelo Git.
+
+Para recuperar os dados:
+
+```bash
+poetry run dvc pull
+```
+
+## Pipeline DVC
+
+O DAG atual contém cinco stages:
+
+```text
+validate_data
+      ↓
+preprocess
+      ↓
 feature_engineering
-        ↓
-train.parquet
-validation.parquet
-test.parquet
-user_encoder.pkl
-item_encoder.pkl
-feature_engineering_report.json
+      ↓
+train
+      ↓
+evaluate
+```
+
+O stage `evaluate` também depende diretamente dos artefatos de feature engineering usados pelos baselines e do checkpoint produzido no treino.
+
+Para visualizar o DAG:
+
+```bash
+poetry run dvc dag
 ```
 
 Para reproduzir toda a cadeia:
@@ -1020,48 +367,665 @@ Para reproduzir toda a cadeia:
 poetry run dvc repro
 ```
 
-Para visualizar as dependências:
+Para verificar o status:
 
 ```bash
-poetry run dvc dag
+poetry run dvc status
 ```
 
-## Próximos blocos
+Resultado esperado:
 
-As próximas etapas do projeto devem implementar:
+```text
+Data and pipelines are up to date.
+```
 
-1. baselines de recomendação;
-2. modelo neural com PyTorch;
-3. treinamento reprodutível;
-4. avaliação Top-K;
-5. métricas como Precision@K, Recall@K e NDCG@K;
-6. comparação entre baselines e modelo neural;
-7. tracking de experimentos com MLflow;
-8. registro e governança do melhor modelo;
-9. Model Registry;
-10. integração entre DVC e MLflow;
-11. empacotamento com Docker;
-12. automação de qualidade e CI/CD;
-13. documentação final;
-14. roteiro e preparação do vídeo de apresentação.
+## Stage `validate_data`
+
+Responsabilidades:
+
+- carregar `events.csv`;
+- validar colunas obrigatórias;
+- validar eventos permitidos;
+- verificar mínimos de interações, usuários e itens;
+- validar conversão do timestamp;
+- produzir relatório estruturado.
+
+Output:
+
+```text
+artifacts/reports/data_validation.json
+```
+
+## Stage `preprocess`
+
+Responsabilidades:
+
+- padronizar nomes de colunas;
+- converter IDs e timestamp;
+- remover registros inválidos;
+- filtrar eventos suportados;
+- atribuir pesos configuráveis;
+- gerar coluna temporal;
+- ordenar os eventos.
+
+Output:
+
+```text
+data/interim/events_clean.parquet
+```
+
+Colunas:
+
+```text
+user_id
+item_id
+event_type
+event_weight
+timestamp
+datetime
+```
+
+## Stage `feature_engineering`
+
+Responsabilidades:
+
+1. agregar eventos por usuário e item;
+2. calcular `interaction_score`;
+3. calcular `interaction_count`;
+4. obter `last_interaction_at`;
+5. filtrar entidades pouco frequentes;
+6. executar split temporal;
+7. ajustar encoders somente no treino;
+8. remover desconhecidos de validação e teste;
+9. persistir o treino positivo;
+10. gerar negativos para o treino neural;
+11. embaralhar o treino;
+12. persistir encoders e relatório.
+
+Outputs:
+
+```text
+data/processed/train_positive.parquet
+data/processed/train.parquet
+data/processed/validation.parquet
+data/processed/test.parquet
+
+artifacts/encoders/user_encoder.pkl
+artifacts/encoders/item_encoder.pkl
+artifacts/reports/feature_engineering_report.json
+```
+
+### `train_positive.parquet`
+
+Contém apenas interações positivas agregadas do período de treino.
+
+É usado por:
+
+- Popularity;
+- Item-KNN;
+- construção do histórico de itens vistos;
+- exclusão de itens já consumidos durante avaliação.
+
+Colunas:
+
+```text
+user_id
+item_id
+user_idx
+item_idx
+interaction_score
+interaction_count
+last_interaction_at
+target
+```
+
+O `target` é igual a 1.
+
+### `train.parquet`
+
+Contém o dataset usado pelo Neural CF.
+
+Colunas:
+
+```text
+user_idx
+item_idx
+target
+```
+
+Combina:
+
+- positivos observados;
+- negativos amostrados.
+
+### `validation.parquet` e `test.parquet`
+
+Mantêm apenas interações positivas reais.
+
+Colunas:
+
+```text
+user_id
+item_id
+user_idx
+item_idx
+interaction_score
+interaction_count
+last_interaction_at
+target
+```
+
+## Split temporal
+
+As interações agregadas são ordenadas por `last_interaction_at`.
+
+Divisão atual:
+
+```text
+70% treino
+15% validação
+15% teste
+```
+
+A escolha aproxima o cenário de produção, no qual o modelo aprende com o passado e é avaliado no futuro.
+
+Essa abordagem reduz vazamento temporal, mas pode revelar:
+
+- sazonalidade;
+- drift;
+- mudanças de catálogo;
+- mudanças no comportamento dos usuários.
+
+## Cold start
+
+Os encoders são ajustados exclusivamente no treino.
+
+Usuários e itens desconhecidos em validação ou teste recebem temporariamente o índice `-1` e são removidos dos conjuntos finais quando `split.filter_unknown_entities` está habilitado.
+
+A quantidade removida é registrada no relatório de feature engineering.
+
+A avaliação atual mede apenas usuários e itens conhecidos no treino.
+
+## Negative sampling
+
+Uma interação observada é tratada como positiva:
+
+```text
+target = 1
+```
+
+Como a ausência de interação não é uma rejeição explícita, os negativos são pseudo-negativos gerados entre pares usuário-item não observados:
+
+```text
+target = 0
+```
+
+Configuração atual:
+
+```text
+4 negativos por positivo
+```
+
+Fonte única:
+
+```text
+params.yaml → training.negative_samples_per_positive
+```
+
+A implementação utiliza amostragem por rejeição e nunca converte um par positivo conhecido em negativo.
+
+Os negativos são gerados apenas para o conjunto de treino neural.
+
+## Modelos
+
+### Popularity
+
+Baseline não personalizado.
+
+O modelo ordena itens pela popularidade acumulada nas interações positivas de treino.
+
+Vantagens:
+
+- simples;
+- rápido;
+- fácil de interpretar;
+- importante como referência mínima.
+
+Limitações:
+
+- recomenda praticamente os mesmos itens para todos;
+- tende a favorecer itens já muito populares;
+- possui baixa cobertura.
+
+### Item-KNN
+
+Baseline baseado em similaridade item-item.
+
+O modelo:
+
+1. constrói uma matriz esparsa usuário-item;
+2. calcula vizinhos por similaridade de cosseno;
+3. combina o histórico do usuário com os itens similares;
+4. filtra vizinhos abaixo de `minimum_similarity`;
+5. retorna os itens com maior score.
+
+Parâmetros:
+
+```text
+params.yaml → item_knn.n_neighbors
+params.yaml → item_knn.minimum_similarity
+```
+
+### Neural Collaborative Filtering
+
+Modelo implementado em PyTorch.
+
+Entradas:
+
+```text
+user_idx
+item_idx
+```
+
+Estrutura:
+
+- embedding de usuários;
+- embedding de itens;
+- concatenação dos embeddings;
+- camadas densas;
+- dropout;
+- saída escalar como logit.
+
+Parâmetros:
+
+```text
+embedding_dim
+hidden_layers
+dropout
+```
+
+O treino usa:
+
+- `BCEWithLogitsLoss`;
+- Adam;
+- early stopping;
+- checkpoint da melhor época;
+- seed global reprodutível.
+
+## Stage `train`
+
+Entradas:
+
+```text
+data/processed/train.parquet
+data/processed/validation.parquet
+params.yaml
+configs/data.yaml
+configs/model.yaml
+configs/training.yaml
+```
+
+Outputs:
+
+```text
+artifacts/models/best_model.pt
+artifacts/reports/train_metrics.json
+```
+
+O relatório registra:
+
+- nome do modelo configurado;
+- quantidade de usuários;
+- quantidade de itens;
+- arquitetura;
+- melhor época;
+- melhor loss de validação;
+- quantidade de épocas concluídas;
+- indicação de early stopping;
+- caminho do checkpoint.
+
+A primeira execução real apresentou melhor época igual a 1 e aumento posterior da loss de validação, indicando overfitting inicial. Esse comportamento deverá orientar experimentos futuros de regularização e tuning.
+
+## Stage `evaluate`
+
+Modelos avaliados:
+
+```text
+popularity
+item_knn
+neural_cf
+```
+
+Entradas principais:
+
+```text
+data/processed/train_positive.parquet
+data/processed/test.parquet
+artifacts/models/best_model.pt
+artifacts/reports/train_metrics.json
+```
+
+O pipeline:
+
+1. carrega o treino positivo;
+2. carrega o teste;
+3. carrega metadados do treinamento;
+4. reconstrói o Neural CF com dimensões compatíveis com o checkpoint;
+5. ajusta Popularity e Item-KNN no treino positivo;
+6. cria o histórico de itens vistos;
+7. limita usuários quando `maximum_users` está configurado;
+8. gera recomendações Top-K;
+9. calcula as métricas;
+10. salva relatórios individuais e comparação.
+
+Outputs:
+
+```text
+artifacts/reports/evaluation/popularity_metrics.json
+artifacts/reports/evaluation/item_knn_metrics.json
+artifacts/reports/evaluation/neural_cf_metrics.json
+artifacts/reports/evaluation/model_comparison.csv
+```
+
+## Métricas
+
+### Precision@K
+
+Proporção dos K itens recomendados que são relevantes.
+
+### Recall@K
+
+Proporção dos itens relevantes do usuário recuperados nas recomendações.
+
+### NDCG@K
+
+Mede qualidade do ranking, atribuindo maior peso aos acertos nas primeiras posições.
+
+### MAP@K
+
+Média da precisão acumulada nos pontos em que itens relevantes aparecem.
+
+### Coverage@K
+
+Proporção do catálogo que aparece nas recomendações.
+
+O valor de K é configurado exclusivamente em:
+
+```text
+params.yaml → evaluation.k
+```
+
+## Limitação de usuários na avaliação
+
+A configuração atual usa:
+
+```text
+maximum_users: 50
+```
+
+Esse limite reduz custo computacional durante desenvolvimento, especialmente no Neural CF, que pontua candidatos do catálogo para cada usuário.
+
+Por isso, os resultados atuais devem ser interpretados como validação operacional da pipeline, e não como benchmark definitivo.
+
+Comparações entre runs devem usar o mesmo valor de `maximum_users`.
+
+## MLflow
+
+O tracking utiliza:
+
+```text
+sqlite:///mlflow.db
+```
+
+Experimento padrão:
+
+```text
+retailrocket-recommender
+```
+
+A configuração fica em `Settings`, alimentada pelas variáveis:
+
+```text
+MLFLOW_TRACKING_URI
+MLFLOW_EXPERIMENT_NAME
+```
+
+O `MLflowTracker` apenas consome essas configurações.
+
+Runs esperadas:
+
+```text
+neural_cf_train
+popularity_evaluation
+item_knn_evaluation
+neural_cf_evaluation
+model_comparison
+```
+
+O treinamento registra:
+
+- hiperparâmetros;
+- loss de treino;
+- loss de validação;
+- histórico por época;
+- checkpoint;
+- relatório de treinamento.
+
+A avaliação registra:
+
+- K;
+- quantidade de usuários avaliados;
+- Precision@K;
+- Recall@K;
+- NDCG@K;
+- MAP@K;
+- Coverage@K;
+- relatórios como artefatos.
+
+Para abrir a interface:
+
+```bash
+poetry run mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
+```
+
+Acesse:
+
+```text
+http://127.0.0.1:5000
+```
+
+Na interface, selecione `Model training`.
+
+## Reprodutibilidade
+
+A seed é configurada somente em:
+
+```text
+params.yaml → training.random_seed
+```
+
+Ela é utilizada em:
+
+- NumPy;
+- negative sampling;
+- embaralhamento;
+- PyTorch;
+- DataLoader;
+- avaliação.
+
+O `dvc.lock` registra os parâmetros efetivamente usados em cada execução.
+
+## Testes e qualidade
+
+Validação completa:
+
+```bash
+poetry run pytest
+poetry run ruff check .
+poetry run ruff format --check .
+poetry run pre-commit run --all-files
+poetry check
+poetry run dvc repro
+poetry run dvc status
+```
+
+Testes de pipelines:
+
+```bash
+poetry run pytest tests/integration/pipelines -v
+```
+
+Testes de modelos:
+
+```bash
+poetry run pytest tests/unit/models -v
+```
+
+Testes de avaliação:
+
+```bash
+poetry run pytest tests/unit/evaluation tests/integration/evaluation -v
+```
+
+Testes de tracking:
+
+```bash
+poetry run pytest tests/unit/tracking tests/integration/tracking -v
+```
+
+## Execuções diretas
+
+Validação:
+
+```bash
+poetry run python -m retail_recommender.pipelines.validate_data
+```
+
+Preprocessamento:
+
+```bash
+poetry run python -m retail_recommender.pipelines.preprocess
+```
+
+Feature engineering:
+
+```bash
+poetry run python -m retail_recommender.pipelines.feature_engineering
+```
+
+Treinamento:
+
+```bash
+poetry run python -m retail_recommender.pipelines.train
+```
+
+Avaliação:
+
+```bash
+poetry run python -m retail_recommender.pipelines.evaluate
+```
+
+Para reprodutibilidade, prefira `poetry run dvc repro`.
+
+## Blocos concluídos
+
+### Bloco 1 — Fundação técnica
+
+Entregas principais:
+
+- estrutura inicial;
+- Poetry;
+- Ruff;
+- Pytest;
+- pre-commit;
+- Pydantic Settings;
+- logging;
+- script de validação;
+- Makefile;
+- testes iniciais.
+
+### Bloco 2 — Dataset e DVC inicial
+
+Entregas principais:
+
+- RetailRocket;
+- DVC;
+- remote local;
+- loader;
+- validador;
+- pipeline `validate_data`;
+- relatório de validação;
+- testes.
+
+### Bloco 3 — Preparação dos dados
+
+Entregas principais:
+
+- Strategy para preprocessamento;
+- feedback implícito;
+- pesos de eventos;
+- agregação usuário-item;
+- split temporal;
+- encoders;
+- cold start;
+- negative sampling;
+- `train_positive.parquet`;
+- `train.parquet`;
+- validação e teste;
+- stages `preprocess` e `feature_engineering`.
+
+### Bloco 4 — Modelagem, tracking e avaliação
+
+Entregas principais:
+
+- interface base dos recomendadores;
+- factory de modelos;
+- Popularity;
+- Item-KNN;
+- Neural Collaborative Filtering;
+- dataset e DataLoader;
+- early stopping;
+- checkpoint;
+- treinamento reprodutível;
+- MLflow;
+- métricas Top-K;
+- avaliação dos três modelos;
+- comparação de resultados;
+- stages DVC `train` e `evaluate`;
+- centralização das configurações;
+- testes unitários e de integração.
+
+## Limitações atuais
+
+- cold start não resolvido;
+- dados de conteúdo dos produtos ainda não utilizados;
+- avaliação limitada por `maximum_users`;
+- Neural CF apresentou overfitting inicial;
+- sem tuning sistemático;
+- sem hard negative sampling;
+- sem avaliação walk-forward;
+- sem retreinamento por janela móvel;
+- sem Model Registry efetivamente configurado;
+- sem Docker e CI/CD;
+- possível presença de falsos negativos entre itens não observados.
+
+## Próximos passos
+
+As próximas etapas previstas incluem:
+
+1. tuning e regularização do Neural CF;
+2. avaliação em amostra maior ou conjunto completo;
+3. análise comparativa das runs;
+4. seleção do melhor modelo;
+5. Model Registry;
+6. empacotamento com Docker;
+7. automação de qualidade e CI/CD;
+8. documentação final e roteiro do vídeo.
 
 ## Conclusão
 
-Com os três primeiros blocos concluídos, o projeto deixou de ser apenas uma estrutura inicial e passou a possuir um pipeline completo de preparação de dados para recomendação.
+O projeto possui agora uma cadeia reprodutível de ponta a ponta, desde o dado bruto até a comparação de modelos.
 
-O Bloco 1 estabeleceu o ambiente, a organização do código e as ferramentas de qualidade. O Bloco 2 incorporou o dataset real, adicionou versionamento com DVC e criou garantias de carregamento e validação. O Bloco 3 transformou os eventos brutos em feedback implícito, construiu interações usuário-item, aplicou o split temporal, tratou entidades desconhecidas, criou encoders, gerou exemplos negativos e persistiu os conjuntos finais.
+Os artefatos de dados são versionados pelo DVC, os parâmetros experimentais possuem fonte única em `params.yaml`, os caminhos são separados por responsabilidade nos arquivos de `configs/`, o treinamento e a avaliação são rastreados pelo MLflow, e os modelos são comparados por métricas de ranking Top-K.
 
-A partir deste ponto, o projeto já possui:
-
-- dados brutos versionados;
-- validação estrutural automatizada;
-- preprocessamento reproduzível;
-- feature engineering rastreável;
-- conjuntos separados para treino, validação e teste;
-- encoders persistidos;
-- negative sampling reprodutível;
-- três stages DVC integrados;
-- testes automatizados;
-- documentação das decisões arquiteturais.
-
-O próximo passo natural é utilizar esses artefatos para construir, treinar e comparar os modelos de recomendação.
+O Bloco 4 encerra a primeira implementação completa do sistema de recomendação e deixa uma base consistente para tuning, governança de modelos, containerização e automação.

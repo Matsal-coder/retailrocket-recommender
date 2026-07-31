@@ -1,174 +1,658 @@
-# Arquitetura do pipeline de recomendação
+# Arquitetura do RetailRocket Recommender
 
-## Visão geral
+## 1. Visão geral
 
-O sistema utiliza feedback implícito do dataset RetailRocket para construir conjuntos de dados preparados para um modelo de recomendação Top-K.
+O sistema implementa uma arquitetura modular para recomendação Top-K com feedback implícito.
 
-O fluxo atual é:
+O fluxo completo é:
 
+```text
 events.csv
     ↓
-validação
+validate_data
     ↓
 events_clean.parquet
     ↓
-agregação usuário-item
-    ↓
-split temporal
-    ↓
-encoders
-    ↓
-negative sampling
-    ↓
-train / validation / test
+feature_engineering
+    ├── train_positive.parquet
+    ├── train.parquet
+    ├── validation.parquet
+    ├── test.parquet
+    ├── user_encoder.pkl
+    └── item_encoder.pkl
+          ↓
+        train
+          ├── best_model.pt
+          └── train_metrics.json
+                ↓
+              evaluate
+                ├── popularity_metrics.json
+                ├── item_knn_metrics.json
+                ├── neural_cf_metrics.json
+                └── model_comparison.csv
+```
 
-## Eventos e pesos
+A arquitetura separa:
 
-Os eventos suportados são:
+- ingestão e validação;
+- preprocessamento;
+- feature engineering;
+- modelos;
+- treinamento;
+- avaliação;
+- tracking;
+- configuração;
+- versionamento de artefatos.
 
-- view: 1.0
-- addtocart: 3.0
-- transaction: 5.0
+## 2. Princípios arquiteturais
 
-A pontuação agregada de uma interação usuário-item é a soma dos pesos dos eventos observados.
+O projeto segue os seguintes princípios:
 
-## Construção das interações
+- responsabilidade única por módulo;
+- dependências explícitas;
+- configuração externa;
+- fonte única para cada parâmetro ou caminho;
+- testes unitários e de integração;
+- artefatos reproduzíveis;
+- separação entre dados positivos e treino neural;
+- abstrações comuns para recomendadores;
+- rastreabilidade por DVC e MLflow.
 
-Os eventos são agregados por:
+## 3. Camada de configuração
 
+### 3.1 Variáveis de ambiente
+
+`src/retail_recommender/config/settings.py` centraliza configurações operacionais.
+
+Exemplos:
+
+```text
+APP_NAME
+APP_ENV
+LOG_LEVEL
+DATA_DIR
+RAW_DATA_DIR
+INTERIM_DATA_DIR
+PROCESSED_DATA_DIR
+ARTIFACTS_DIR
+MLFLOW_TRACKING_URI
+MLFLOW_EXPERIMENT_NAME
+```
+
+O backend padrão do MLflow é:
+
+```text
+sqlite:///mlflow.db
+```
+
+O tracker não lê diretamente `os.getenv`. Ele consome `Settings`.
+
+### 3.2 Parâmetros experimentais
+
+`params.yaml` é a fonte única para:
+
+- pesos dos eventos;
+- filtros mínimos;
+- split temporal;
+- random seed;
+- negative sampling;
+- hiperparâmetros do treino;
+- arquitetura do Neural CF;
+- parâmetros do Item-KNN;
+- parâmetros da avaliação.
+
+A seed existe somente em:
+
+```text
+training.random_seed
+```
+
+O K existe somente em:
+
+```text
+evaluation.k
+```
+
+### 3.3 Caminhos
+
+Responsabilidades:
+
+```text
+configs/data.yaml
+→ datasets, encoders e relatórios de dados
+
+configs/model.yaml
+→ checkpoint
+
+configs/training.yaml
+→ relatório de treino
+
+configs/evaluation.yaml
+→ diretório de outputs da avaliação
+```
+
+Essa separação elimina caminhos repetidos em múltiplos YAMLs.
+
+## 4. Camada de dados
+
+### 4.1 Loader
+
+O loader:
+
+- verifica existência;
+- carrega o CSV;
+- rejeita arquivo vazio;
+- não executa transformação de negócio.
+
+### 4.2 Validador
+
+O validador verifica:
+
+- colunas;
+- dados ausentes;
+- eventos;
+- volume mínimo;
+- usuários;
+- itens;
+- timestamp.
+
+Output:
+
+```text
+artifacts/reports/data_validation.json
+```
+
+### 4.3 Preprocessador
+
+`ImplicitFeedbackPreprocessor` implementa uma estratégia de preprocessamento.
+
+Entradas:
+
+```text
+event_weights
+allowed_event_types
+```
+
+Ele não conhece valores fixos de peso. Os valores vêm de `params.yaml`.
+
+Output:
+
+```text
+data/interim/events_clean.parquet
+```
+
+## 5. Construção das interações
+
+Eventos são agregados por:
+
+```text
 user_id
 item_id
+```
 
-O resultado contém:
+Campos produzidos:
 
+```text
 interaction_score
 interaction_count
 last_interaction_at
 target
+```
 
-O campo target é inicialmente igual a 1, porque representa uma interação positiva observada.
+A pontuação é a soma dos pesos dos eventos.
 
-## Split temporal
+O `target` inicial é 1 porque cada linha agregada representa interação observada.
 
-As interações são ordenadas por last_interaction_at.
+## 6. Split temporal
 
-O corte utilizado é:
+As interações são ordenadas por `last_interaction_at`.
 
+Divisão:
+
+```text
 70% treino
 15% validação
 15% teste
+```
 
-A divisão global no tempo aproxima o cenário em que o modelo é treinado com o histórico disponível e avaliado no futuro.
+A divisão é global no tempo.
 
-Essa escolha reduz vazamento temporal, mas pode expor sazonalidade e mudanças de distribuição entre os períodos. Por isso, os intervalos de datas dos conjuntos são registrados no relatório de feature engineering.
+Benefício:
 
-## Cold start
+- reduz vazamento temporal.
 
-Somente usuários e itens presentes no treino são considerados na avaliação inicial.
+Riscos:
 
-Interações desconhecidas em validação e teste são removidas e contabilizadas no relatório.
+- sazonalidade;
+- drift;
+- mudança de catálogo;
+- mudança de perfil de consumo.
 
-A resolução completa de cold start está fora do escopo da versão atual.
+## 7. Encoders e cold start
 
-## Encoders
+Os encoders transformam IDs esparsos em índices contínuos:
 
-Os IDs originais são convertidos em índices contínuos.
+```text
+user_id → user_idx
+item_id → item_idx
+```
 
-Os encoders são ajustados somente no treino e persistidos para garantir consistência entre treinamento, avaliação e inferência.
+Eles são ajustados apenas no treino.
 
-IDs desconhecidos recebem temporariamente o índice -1, mas não são mantidos nos conjuntos finais.
+Entidades desconhecidas recebem temporariamente `-1`.
 
-## Positive e negative sampling
+Quando `filter_unknown_entities` está habilitado, linhas desconhecidas são removidas de validação e teste.
 
-As interações observadas são tratadas como exemplos positivos:
+Essa política garante compatibilidade com embeddings, mas limita a avaliação a entidades conhecidas.
 
+## 8. Positive e negative sampling
+
+### 8.1 Positivos
+
+Interações observadas:
+
+```text
 target = 1
+```
 
-No pipeline atual, todos os pares positivos do conjunto de treino são preservados.
+O arquivo:
 
-Como o dataset possui feedback implícito, a ausência de interação não representa rejeição explícita. Ainda assim, pares usuário-item não observados podem ser usados como pseudo-negativos:
+```text
+data/processed/train_positive.parquet
+```
 
+preserva as interações positivas agregadas e suas colunas completas.
+
+Ele é usado pelos baselines e pelo histórico de itens vistos.
+
+### 8.2 Negativos
+
+Pares não observados são amostrados como pseudo-negativos:
+
+```text
 target = 0
+```
 
-O conjunto de treino combina:
+Configuração:
 
-positivos observados
-+
-negativos amostrados
+```text
+training.negative_samples_per_positive
+```
 
-A configuração inicial utiliza quatro negativos por positivo.
+Valor atual:
 
-Essa razão é um hiperparâmetro e foi escolhida como baseline para oferecer contraste suficiente ao modelo sem tornar o conjunto de treino excessivamente grande.
+```text
+4
+```
 
-## Estratégia de negative sampling
+A amostragem é por rejeição:
 
-O algoritmo gera negativos somente com usuários e itens conhecidos no treino.
+1. sorteia item conhecido;
+2. rejeita se já for positivo do usuário;
+3. aceita caso contrário;
+4. repete até atingir a quantidade necessária.
 
-Para cada usuário:
+O pipeline valida que negativos não se sobrepõem a positivos.
 
-1. identifica os itens positivos conhecidos;
-2. sorteia candidatos no intervalo dos itens codificados;
-3. rejeita candidatos que já sejam positivos;
-4. continua até gerar a quantidade configurada de negativos.
+### 8.3 Treino neural
 
-A implementação usa amostragem por rejeição para evitar percorrer o catálogo inteiro para cada usuário.
+`train.parquet` contém somente:
 
-## Outputs
+```text
+user_idx
+item_idx
+target
+```
 
-O pipeline produz:
+Ele combina positivos e negativos e é usado pelo Neural CF.
 
-data/processed/train.parquet
-data/processed/validation.parquet
-data/processed/test.parquet
+## 9. Camada de modelos
 
-artifacts/encoders/user_encoder.pkl
-artifacts/encoders/item_encoder.pkl
+### 9.1 Interface base
 
-artifacts/reports/feature_engineering_report.json
+Os recomendadores compartilham um contrato comum para:
 
-## DVC
+- `fit`;
+- `recommend`;
+- persistência quando aplicável;
+- validação de entrada.
 
-O pipeline reprodutível contém três stages:
+A factory normaliza nomes e cria implementações suportadas.
 
+### 9.2 Popularity
+
+Ordena itens por score agregado de popularidade.
+
+Características:
+
+- não personalizado;
+- baixo custo;
+- alta interpretabilidade;
+- referência mínima.
+
+### 9.3 Item-KNN
+
+Constrói matriz usuário-item esparsa e vizinhança item-item por cosseno.
+
+Fluxo:
+
+1. matriz esparsa;
+2. busca de vizinhos;
+3. remoção do próprio item;
+4. aplicação de `minimum_similarity`;
+5. score ponderado pelo histórico do usuário;
+6. ordenação dos candidatos.
+
+Parâmetros:
+
+```text
+item_knn.n_neighbors
+item_knn.minimum_similarity
+```
+
+### 9.4 Neural CF
+
+Arquitetura:
+
+```text
+user_idx → user embedding
+item_idx → item embedding
+embeddings concatenados
+        ↓
+MLP
+        ↓
+logit
+```
+
+Parâmetros:
+
+```text
+model.embedding_dim
+model.hidden_layers
+model.dropout
+```
+
+A dimensão dos embeddings depende do número de usuários e itens conhecidos.
+
+## 10. Camada de treinamento
+
+Componentes:
+
+- dataset PyTorch;
+- DataLoader;
+- seed global;
+- trainer;
+- early stopping;
+- checkpoint;
+- relatório.
+
+Loss:
+
+```text
+BCEWithLogitsLoss
+```
+
+Otimizador:
+
+```text
+Adam
+```
+
+O checkpoint corresponde à melhor loss de validação, não necessariamente à última época.
+
+O relatório guarda as dimensões das entidades para reconstrução posterior do modelo.
+
+## 11. Camada de avaliação
+
+### 11.1 Entradas
+
+```text
+train_positive.parquet
+test.parquet
+best_model.pt
+train_metrics.json
+```
+
+### 11.2 Histórico de itens vistos
+
+O histórico é construído a partir de `train_positive.parquet`.
+
+Quando `exclude_seen_items` é verdadeiro, itens conhecidos do treino são removidos das recomendações.
+
+### 11.3 Candidatos
+
+O Neural CF pontua itens em lotes de tamanho:
+
+```text
+evaluation.candidate_batch_size
+```
+
+Isso reduz uso de memória.
+
+### 11.4 Usuários avaliados
+
+A quantidade pode ser limitada por:
+
+```text
+evaluation.maximum_users
+```
+
+O valor atual de 50 é adequado para smoke tests e desenvolvimento, mas não representa avaliação definitiva.
+
+### 11.5 Métricas
+
+O evaluator calcula:
+
+```text
+Precision@K
+Recall@K
+NDCG@K
+MAP@K
+Coverage@K
+```
+
+O cutoff é definido somente em `evaluation.k`.
+
+## 12. MLflow
+
+### 12.1 Backend
+
+```text
+sqlite:///mlflow.db
+```
+
+### 12.2 Experimento
+
+```text
+retailrocket-recommender
+```
+
+### 12.3 Runs
+
+```text
+neural_cf_train
+popularity_evaluation
+item_knn_evaluation
+neural_cf_evaluation
+model_comparison
+```
+
+### 12.4 Tracking do treino
+
+Registra:
+
+- seed;
+- batch size;
+- learning rate;
+- arquitetura;
+- dropout;
+- épocas;
+- early stopping;
+- losses;
+- checkpoint;
+- relatório.
+
+### 12.5 Tracking da avaliação
+
+Registra:
+
+- modelo;
+- K;
+- usuários;
+- exclusão de vistos;
+- parâmetros do modelo;
+- métricas;
+- relatórios.
+
+## 13. DVC
+
+Stages:
+
+```text
 validate_data
-      ↓
 preprocess
-      ↓
 feature_engineering
+train
+evaluate
+```
 
-O stage validate_data valida o dataset bruto.
+O DVC rastreia:
 
-O stage preprocess transforma os eventos em feedback implícito padronizado.
+- código;
+- configurações;
+- parâmetros;
+- dados;
+- relatórios;
+- checkpoint.
 
-O stage feature_engineering constrói as interações, realiza o split temporal, ajusta os encoders, gera negativos e persiste os conjuntos finais.
+O `dvc.lock` registra o estado efetivamente executado.
 
-## Decisões atuais
+A reprodução completa é:
 
-As principais decisões arquiteturais são:
+```bash
+poetry run dvc repro
+```
+
+## 14. Contratos dos principais artefatos
+
+### `events_clean.parquet`
+
+```text
+user_id
+item_id
+event_type
+event_weight
+timestamp
+datetime
+```
+
+### `train_positive.parquet`
+
+```text
+user_id
+item_id
+user_idx
+item_idx
+interaction_score
+interaction_count
+last_interaction_at
+target
+```
+
+### `train.parquet`
+
+```text
+user_idx
+item_idx
+target
+```
+
+### `validation.parquet` e `test.parquet`
+
+```text
+user_id
+item_id
+user_idx
+item_idx
+interaction_score
+interaction_count
+last_interaction_at
+target
+```
+
+### `train_metrics.json`
+
+Inclui:
+
+- resultado do treino;
+- melhor época;
+- melhor loss;
+- dimensões de usuários e itens;
+- arquitetura;
+- checkpoint.
+
+### Relatórios de avaliação
+
+Cada JSON contém:
+
+- nome do modelo;
+- parâmetros;
+- métricas;
+- metadados da execução.
+
+O CSV consolida os modelos para comparação.
+
+## 15. Decisões arquiteturais
+
+Decisões atuais:
 
 - feedback implícito;
-- pesos diferentes por evento;
-- agregação usuário-item;
+- pesos por evento;
 - split temporal global;
-- encoders ajustados somente no treino;
-- remoção de desconhecidos na avaliação;
-- negative sampling aleatório;
+- encoders treinados somente no treino;
+- remoção de desconhecidos;
 - quatro negativos por positivo;
-- amostragem por rejeição;
-- DVC para versionamento e reprodução dos artefatos.
+- baselines Popularity e Item-KNN;
+- Neural CF com embeddings e MLP;
+- BCEWithLogitsLoss;
+- early stopping;
+- checkpoint da melhor época;
+- avaliação Top-K;
+- exclusão opcional de itens vistos;
+- MLflow local com SQLite;
+- DVC para o pipeline completo;
+- parâmetros centralizados;
+- caminhos centralizados por responsabilidade.
 
-## Limitações
+## 16. Limitações
 
-A versão atual não resolve:
+- cold start não resolvido;
+- sem features de conteúdo;
+- sem contexto temporal explícito no modelo;
+- sem hard negative sampling;
+- falsos negativos possíveis;
+- avaliação limitada a parte dos usuários;
+- custo de ranking sobre catálogo grande;
+- overfitting inicial do Neural CF;
+- sem tuning sistemático;
+- sem walk-forward;
+- sem janela móvel;
+- sem Model Registry operacional;
+- sem serving;
+- sem Docker;
+- sem CI/CD.
 
-- cold start de novos usuários;
-- cold start de novos itens;
-- sazonalidade explicitamente;
-- hard negative sampling;
-- features de conteúdo dos produtos;
-- ranking contra todo o catálogo;
-- retreinamento por janela móvel;
-- avaliação walk-forward;
-- possível presença de falsos negativos entre pares não observados.
+## 17. Evoluções previstas
 
-Esses pontos poderão ser tratados em blocos futuros.
+- tuning de hiperparâmetros;
+- regularização;
+- amostra de avaliação maior;
+- ranking mais eficiente;
+- amostragem de candidatos;
+- hard negatives;
+- features de item;
+- features temporais;
+- Model Registry;
+- Docker;
+- CI/CD;
+- serving e monitoramento.
