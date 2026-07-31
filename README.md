@@ -353,12 +353,17 @@ addtocart
 transaction
 ```
 
-O arquivo bruto é versionado pelo DVC, e não diretamente pelo Git.
+O arquivo bruto é versionado pelo DVC e não é armazenado diretamente no
+repositório Git.
 
-Para recuperar os dados:
+O remote DVC utilizado no desenvolvimento é local, conforme permitido pelo
+enunciado do Tech Challenge. Por isso, o caminho configurado no repositório
+original pode não estar disponível em outras máquinas.
+Em um clone externo, baixe o arquivo events.csv do dataset RetailRocket e
+coloque-o em:
 
-```bash
-poetry run dvc pull
+```text
+data/raw/events.csv
 ```
 
 ## Pipeline DVC
