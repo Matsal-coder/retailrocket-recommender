@@ -28,6 +28,7 @@ LOGGER = logging.getLogger(__name__)
 PARAMS_PATH = Path("params.yaml")
 DATA_CONFIG_PATH = Path("configs/data.yaml")
 EVALUATION_CONFIG_PATH = Path("configs/evaluation.yaml")
+REGISTRY_CONFIG_PATH = Path("configs/registry.yaml")
 
 SUPPORTED_MODEL = "item_knn"
 MODEL_ARTIFACT_NAME = "selected-recommender"
@@ -238,6 +239,10 @@ def _load_registration_paths() -> RegistrationPaths:
         _load_yaml(EVALUATION_CONFIG_PATH),
         "evaluation",
     )
+    registry_config = _get_mapping(
+        _load_yaml(REGISTRY_CONFIG_PATH),
+        "registry",
+    )
 
     return RegistrationPaths(
         train_interactions=Path(
@@ -254,8 +259,8 @@ def _load_registration_paths() -> RegistrationPaths:
         ),
         registry_report=Path(
             _get_required_string(
-                evaluation_config,
-                "registry_report_path",
+                registry_config,
+                "report_path",
             )
         ),
     )

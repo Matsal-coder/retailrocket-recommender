@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import yaml
 
+from retail_recommender.pipelines import (
+    register_model as register_model_pipeline,
+)
 from retail_recommender.pipelines.register_model import (
     RegistrationResult,
     _build_version_tags,
@@ -116,3 +120,67 @@ def test_write_registration_report_writes_json(
     assert saved["registered_model_name"] == ("RetailRocketRecommender")
     assert saved["version"] == "1"
     assert saved["alias"] == "staging"
+
+
+def test_load_registration_paths_uses_centralized_configs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    train_path = tmp_path / "train_positive.parquet"
+    selected_model_path = tmp_path / "selected_model.json"
+    registry_report_path = tmp_path / "registry" / "registration.json"
+
+    data_config_path = tmp_path / "data.yaml"
+    evaluation_config_path = tmp_path / "evaluation.yaml"
+    registry_config_path = tmp_path / "registry.yaml"
+
+    data_config_path.write_text(
+        yaml.safe_dump(
+            {
+                "train_positive_path": str(train_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+    evaluation_config_path.write_text(
+        yaml.safe_dump(
+            {
+                "evaluation": {
+                    "selected_model_path": str(selected_model_path),
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    registry_config_path.write_text(
+        yaml.safe_dump(
+            {
+                "registry": {
+                    "report_path": str(registry_report_path),
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        register_model_pipeline,
+        "DATA_CONFIG_PATH",
+        data_config_path,
+    )
+    monkeypatch.setattr(
+        register_model_pipeline,
+        "EVALUATION_CONFIG_PATH",
+        evaluation_config_path,
+    )
+    monkeypatch.setattr(
+        register_model_pipeline,
+        "REGISTRY_CONFIG_PATH",
+        registry_config_path,
+    )
+
+    paths = register_model_pipeline._load_registration_paths()
+
+    assert paths.train_interactions == train_path
+    assert paths.selected_model == selected_model_path
+    assert paths.registry_report == registry_report_path
