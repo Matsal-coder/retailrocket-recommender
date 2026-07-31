@@ -1,36 +1,63 @@
 .git
+.gitignore
+.gitattributes
 .github
-.venv
-venv
-env
+
 
 __pycache__
-*.pyc
+*.py[cod]
 *.pyo
-*.pyd
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+coverage.xml
+htmlcov
 
 .pytest_cache
 .ruff_cache
 .coverage
 htmlcov
 
+env
 .env
 .env.*
+!.env.example
+.venv
+venv
 
-data/raw
-data/interim
-data/processed
+data/**/*.csv
+data/**/*.parquet
+data/**/*.json
+!data/**/*.dvc
+!data/**/.gitkeep
 
-artifacts
+mlflow.db
 mlruns
+mlartifacts
+artifacts
+artifacts/*
+!artifacts/.gitkeep
+
+.dvc/cache
+.dvc/tmp
 
 dist
 build
 *.egg-info
 
+*.ipynb
 .ipynb_checkpoints
 .vscode
 .idea
 
 .DS_Store
 Thumbs.db
+
+docs
+*.pdf
+
+logs
+tmp
+temp
+*.log
