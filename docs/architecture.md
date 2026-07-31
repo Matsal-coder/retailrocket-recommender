@@ -29,7 +29,14 @@ feature_engineering
                 ├── popularity_metrics.json
                 ├── item_knn_metrics.json
                 ├── neural_cf_metrics.json
-                └── model_comparison.csv
+                ├── model_comparison.csv
+                └── selected_model.json
+                          ↓
+                    register_model
+                          ├── MLflow run
+                          ├── Registered Model
+                          ├── alias staging
+                          └── model_registration.json
 ```
 
 A arquitetura separa:
@@ -77,6 +84,9 @@ PROCESSED_DATA_DIR
 ARTIFACTS_DIR
 MLFLOW_TRACKING_URI
 MLFLOW_EXPERIMENT_NAME
+MLFLOW_REGISTERED_MODEL_NAME
+MLFLOW_STAGING_ALIAS
+MLFLOW_PRODUCTION_ALIAS
 ```
 
 O backend padrão do MLflow é:
@@ -129,6 +139,9 @@ configs/training.yaml
 
 configs/evaluation.yaml
 → diretório de outputs da avaliação
+
+configs/registry.yaml
+→ relatório de registro do modelo
 ```
 
 Essa separação elimina caminhos repetidos em múltiplos YAMLs.
@@ -504,7 +517,219 @@ Registra:
 - métricas;
 - relatórios.
 
-## 13. DVC
+
+## 13. Seleção de modelos
+
+`evaluation/model_selector.py` recebe o relatório consolidado e seleciona o melhor modelo pela métrica primária.
+
+A configuração atual utiliza NDCG@10.
+
+Critérios de desempate:
+
+```text
+Recall@10
+MAP@10
+Coverage@10
+nome do modelo
+```
+
+O último critério garante comportamento determinístico mesmo quando todas as métricas anteriores são iguais.
+
+Output:
+
+```text
+artifacts/reports/evaluation/selected_model.json
+```
+
+O componente não conhece detalhes de MLflow. Sua responsabilidade termina na decisão baseada em métricas e na persistência da seleção.
+
+## 14. Model Registry
+
+`pipelines/register_model.py` orquestra o registro.
+
+`tracking/registry.py` encapsula:
+
+- criação do modelo registrado;
+- criação de versões;
+- consulta por alias;
+- atribuição de aliases;
+- tradução de erros do MLflow.
+
+`tracking/item_knn_pyfunc.py` adapta o Item-KNN ao contrato `mlflow.pyfunc.PythonModel`.
+
+Fluxo:
+
+```text
+selected_model.json
+        ↓
+register_model.py
+        ↓
+ItemKNNPyFunc
+        ↓
+MLflow run
+        ↓
+Registered Model
+        ↓
+alias staging
+```
+
+O nome padrão do modelo registrado é:
+
+```text
+RetailRocketRecommender
+```
+
+O relatório final é salvo em:
+
+```text
+artifacts/reports/registry/model_registration.json
+```
+
+O alias `production` existe na configuração, mas não é atribuído automaticamente.
+
+## 15. Arquitetura Docker
+
+O Dockerfile possui dois ambientes finais:
+
+```text
+runtime
+→ aplicação, dependências principais e MLflow
+
+pipeline
+→ aplicação, DVC, testes e ferramentas de qualidade
+```
+
+O Poetry fica em:
+
+```text
+/opt/poetry
+```
+
+As dependências do projeto ficam em:
+
+```text
+/opt/venv
+```
+
+Essa separação impede que operações de instalação das dependências do projeto removam o próprio Poetry.
+
+A ordem do `PATH` prioriza `/opt/venv/bin`, garantindo que Python, pip, DVC, Pytest e Ruff usem o ambiente da aplicação.
+
+A imagem final não inclui:
+
+- `.git`;
+- virtualenv local;
+- dados brutos;
+- cache do DVC;
+- artefatos gerados;
+- caches de ferramentas.
+
+## 16. Arquitetura do Docker Compose
+
+```text
+host
+│
+├── navegador
+│      ↓ localhost:5000
+│
+└── Docker Compose network
+       ├── mlflow
+       │     ├── SQLite
+       │     └── artifact store
+       │
+       └── trainer
+             ├── /app montado do host
+             ├── DVC
+             ├── pipeline
+             └── MLFLOW_TRACKING_URI=http://mlflow:5000
+```
+
+O serviço `mlflow` fornece tracking, interface web, backend SQLite, artifact store e Model Registry.
+
+O serviço `trainer` usa a imagem `pipeline`, monta o repositório em `/app` e acessa o MLflow pelo hostname interno `mlflow`.
+
+O volume nomeado persiste:
+
+```text
+/mlflow/mlflow.db
+/mlflow/artifacts
+```
+
+Esses dados permanecem após `docker compose down`.
+
+## 17. Makefile como interface operacional
+
+O Makefile centraliza:
+
+```text
+instalação
+qualidade
+testes
+DVC
+MLflow local
+Docker
+Docker Compose
+Model Registry
+validação final
+```
+
+Exemplos:
+
+```bash
+make quality
+make pipeline
+make compose-up
+make compose-pipeline
+make compose-register-model
+make validate-local
+```
+
+A camada operacional não contém regras de negócio. Ela apenas padroniza comandos já existentes.
+
+## 18. Fronteiras arquiteturais
+
+```text
+evaluation/model_selector.py
+→ decisão baseada em métricas
+
+tracking/registry.py
+→ integração com o Model Registry
+
+tracking/item_knn_pyfunc.py
+→ adaptação para MLflow PyFunc
+
+pipelines/register_model.py
+→ orquestração do caso de uso
+
+Dockerfile
+→ construção dos ambientes
+
+docker-compose.yml
+→ composição, rede e persistência
+
+Makefile
+→ interface operacional
+```
+
+## 19. Fluxo final de entrega
+
+```text
+código + parâmetros + dados versionados
+                ↓
+            dvc repro
+                ↓
+       comparação de modelos
+                ↓
+        seleção automática
+                ↓
+        registro no MLflow
+                ↓
+          alias staging
+                ↓
+     validações local e Docker
+```
+
+## 20. DVC
 
 Stages:
 
@@ -533,7 +758,7 @@ A reprodução completa é:
 poetry run dvc repro
 ```
 
-## 14. Contratos dos principais artefatos
+## 21. Contratos dos principais artefatos
 
 ### `events_clean.parquet`
 
@@ -602,7 +827,7 @@ Cada JSON contém:
 
 O CSV consolida os modelos para comparação.
 
-## 15. Decisões arquiteturais
+## 22. Decisões arquiteturais
 
 Decisões atuais:
 
@@ -619,12 +844,18 @@ Decisões atuais:
 - checkpoint da melhor época;
 - avaliação Top-K;
 - exclusão opcional de itens vistos;
-- MLflow local com SQLite;
+- MLflow local ou em Docker Compose;
+- seleção automática pelo NDCG@10;
+- Model Registry com alias `staging`;
+- empacotamento Item-KNN como MLflow PyFunc;
 - DVC para o pipeline completo;
+- Docker multi-stage;
+- persistência do MLflow em volume nomeado;
 - parâmetros centralizados;
-- caminhos centralizados por responsabilidade.
+- caminhos centralizados por responsabilidade;
+- comandos operacionais centralizados no Makefile.
 
-## 16. Limitações
+## 23. Limitações
 
 - cold start não resolvido;
 - sem features de conteúdo;
@@ -637,22 +868,25 @@ Decisões atuais:
 - sem tuning sistemático;
 - sem walk-forward;
 - sem janela móvel;
-- sem Model Registry operacional;
-- sem serving;
-- sem Docker;
-- sem CI/CD.
+- cobertura baixa do Item-KNN;
+- sem serving de produção;
+- sem promoção automática para `production`;
+- sem monitoramento de drift;
+- sem métricas online.
 
-## 17. Evoluções previstas
+## 24. Evoluções previstas
 
 - tuning de hiperparâmetros;
 - regularização;
-- amostra de avaliação maior;
+- avaliação sobre amostra maior;
 - ranking mais eficiente;
 - amostragem de candidatos;
 - hard negatives;
 - features de item;
 - features temporais;
-- Model Registry;
-- Docker;
-- CI/CD;
-- serving e monitoramento.
+- estratégia híbrida para cold start;
+- critérios formais para promoção;
+- serving;
+- monitoramento;
+- métricas de diversidade e novidade;
+- CI/CD.

@@ -28,37 +28,49 @@ O projeto adota:
 - pre-commit para validações antes dos commits;
 - Pydantic Settings para variáveis de ambiente;
 - DVC para versionamento de dados, artefatos e pipelines;
-- MLflow para tracking de experimentos;
+- MLflow para tracking de experimentos e Model Registry;
 - Scikit-Learn e SciPy para os baselines;
 - PyTorch para o modelo neural;
+- Docker multi-stage para os ambientes `runtime` e `pipeline`;
+- Docker Compose para integração entre o trainer e o MLflow;
+- Makefile como interface operacional do projeto;
 - configuração externa por YAML e `.env`;
 - seeds reprodutíveis;
 - type hints e docstrings;
+- Strategy Pattern no preprocessamento;
+- Factory Pattern na criação dos recomendadores;
 - branches separadas por funcionalidade;
 - testes para cada nova funcionalidade.
 
-## Estado atual
+## Estado final do projeto
 
-Os quatro primeiros blocos do projeto estão concluídos:
+Os cinco blocos planejados para o Tech Challenge foram concluídos:
 
-1. fundação técnica;
+1. fundação técnica e gerenciamento de dependências;
 2. dataset, DVC inicial, loader e validação;
-3. preprocessamento e feature engineering;
-4. modelos, treinamento, avaliação, MLflow e integração final com DVC.
+3. preprocessamento, feature engineering e split temporal;
+4. modelos, treinamento, avaliação e tracking com MLflow;
+5. seleção automática, Model Registry, Docker, Docker Compose e entrega final.
 
-O pipeline atual já permite:
+O projeto permite:
 
-- validar o dataset bruto;
-- transformar os eventos em feedback implícito;
-- gerar interações usuário-item;
+- validar e versionar o dataset RetailRocket;
+- transformar eventos em feedback implícito ponderado;
+- construir interações usuário-item;
 - executar split temporal;
-- criar encoders;
-- gerar negativos para o treino neural;
-- treinar um Neural Collaborative Filtering;
-- avaliar Popularity, Item-KNN e Neural CF;
-- calcular métricas Top-K;
-- registrar treinamento e avaliação no MLflow;
-- reproduzir todo o fluxo com DVC.
+- criar encoders de usuários e itens;
+- gerar pseudo-negativos para o treino neural;
+- treinar o Neural Collaborative Filtering em PyTorch;
+- treinar e avaliar os baselines Popularity e Item-KNN;
+- calcular Precision@K, Recall@K, NDCG@K, MAP@K e Coverage@K;
+- selecionar automaticamente o melhor modelo;
+- registrar experimentos no MLflow;
+- registrar o modelo selecionado no MLflow Model Registry;
+- atribuir o alias `staging` à versão registrada;
+- reproduzir o pipeline com DVC;
+- executar o ambiente em imagens Docker multi-stage;
+- integrar o trainer e o MLflow por Docker Compose;
+- centralizar as operações mais importantes no Makefile.
 
 ## Estrutura principal
 
@@ -175,6 +187,9 @@ PROCESSED_DATA_DIR=data/processed
 ARTIFACTS_DIR=artifacts
 MLFLOW_TRACKING_URI=sqlite:///mlflow.db
 MLFLOW_EXPERIMENT_NAME=retailrocket-recommender
+MLFLOW_REGISTERED_MODEL_NAME=RetailRocketRecommender
+MLFLOW_STAGING_ALIAS=staging
+MLFLOW_PRODUCTION_ALIAS=production
 ```
 
 O `.env.example` é versionado. O `.env` local não deve ser versionado.
@@ -299,6 +314,15 @@ training:
 ```yaml
 evaluation:
   output_directory: artifacts/reports/evaluation
+```
+
+### `configs/registry.yaml`
+
+É a fonte única para o relatório de registro:
+
+```yaml
+registry:
+  report_path: artifacts/reports/registry/model_registration.json
 ```
 
 Essa divisão evita repetir o mesmo caminho em vários YAMLs.
@@ -725,6 +749,7 @@ artifacts/reports/evaluation/popularity_metrics.json
 artifacts/reports/evaluation/item_knn_metrics.json
 artifacts/reports/evaluation/neural_cf_metrics.json
 artifacts/reports/evaluation/model_comparison.csv
+artifacts/reports/evaluation/selected_model.json
 ```
 
 ## Métricas
@@ -768,6 +793,42 @@ Esse limite reduz custo computacional durante desenvolvimento, especialmente no 
 Por isso, os resultados atuais devem ser interpretados como validação operacional da pipeline, e não como benchmark definitivo.
 
 Comparações entre runs devem usar o mesmo valor de `maximum_users`.
+
+
+## Seleção automática do melhor modelo
+
+Ao final do stage `evaluate`, os resultados dos três recomendadores são consolidados em:
+
+```text
+artifacts/reports/evaluation/model_comparison.csv
+```
+
+O módulo `evaluation/model_selector.py` seleciona o melhor modelo utilizando NDCG@10 como métrica primária.
+
+Os critérios de desempate são:
+
+1. Recall@10;
+2. MAP@10;
+3. Coverage@10;
+4. nome do modelo, para garantir comportamento determinístico.
+
+A seleção é persistida em:
+
+```text
+artifacts/reports/evaluation/selected_model.json
+```
+
+Na avaliação atual, o modelo selecionado foi o Item-KNN.
+
+| Métrica | Resultado atual |
+| --- | ---: |
+| NDCG@10 | 0.040 |
+| Recall@10 | 0.050 |
+| MAP@10 | 0.034 |
+| Coverage@10 | 0.00546 |
+| Usuários avaliados | 50 |
+
+Esses valores representam a configuração atual de desenvolvimento. O limite de 50 usuários reduz o custo computacional, mas não deve ser interpretado como uma avaliação definitiva em escala de produção.
 
 ## MLflow
 
@@ -835,6 +896,230 @@ http://127.0.0.1:5000
 ```
 
 Na interface, selecione `Model training`.
+
+
+## MLflow Model Registry
+
+O modelo selecionado é registrado por:
+
+```bash
+poetry run python -m retail_recommender.pipelines.register_model
+```
+
+Ou, com o MLflow executado pelo Docker Compose:
+
+```bash
+make compose-up
+make compose-register-model
+```
+
+A configuração do Registry é centralizada em:
+
+```text
+configs/registry.yaml
+```
+
+O nome padrão do modelo registrado é:
+
+```text
+RetailRocketRecommender
+```
+
+O pipeline de registro:
+
+1. lê `selected_model.json`;
+2. valida se o modelo selecionado possui implementação de registro;
+3. inicia uma run no MLflow;
+4. registra parâmetros e metadados;
+5. empacota o Item-KNN como modelo `pyfunc`;
+6. cria uma versão no Model Registry;
+7. atribui o alias `staging`;
+8. persiste o relatório de registro.
+
+Relatório:
+
+```text
+artifacts/reports/registry/model_registration.json
+```
+
+O alias `production` não é atribuído automaticamente. A promoção para produção deve exigir avaliação representativa, validação de negócio e testes operacionais adicionais.
+
+## Docker
+
+O projeto utiliza um Dockerfile multi-stage.
+
+### Imagem `runtime`
+
+Contém Python, Poetry, dependências principais, código de produção, configurações e scripts operacionais.
+
+Não contém DVC, Pytest, Ruff, testes, dados brutos, cache do Git ou a virtualenv local.
+
+Build:
+
+```bash
+docker build --target runtime -t retailrocket-recommender:runtime .
+```
+
+### Imagem `pipeline`
+
+Contém adicionalmente DVC, Pytest, Ruff, pre-commit e os arquivos necessários para reprodução e validação do pipeline.
+
+Build:
+
+```bash
+docker build --target pipeline -t retailrocket-recommender:pipeline .
+```
+
+Smoke test:
+
+```bash
+docker run --rm retailrocket-recommender:pipeline
+```
+
+O resultado esperado é a versão do DVC instalada, atualmente `3.67.1`.
+
+## Docker Compose
+
+O `docker-compose.yml` define dois serviços.
+
+### `mlflow`
+
+Responsável por:
+
+- tracking server;
+- interface web;
+- backend SQLite;
+- armazenamento persistente de artefatos;
+- Model Registry.
+
+A interface fica disponível em:
+
+```text
+http://localhost:5000
+```
+
+### `trainer`
+
+Responsável por:
+
+- executar o DVC;
+- rodar testes e Ruff;
+- acessar o projeto montado em `/app`;
+- registrar runs no serviço `mlflow`;
+- registrar modelos no Model Registry.
+
+Dentro da rede Docker, o tracking URI é:
+
+```text
+http://mlflow:5000
+```
+
+Comandos principais:
+
+```bash
+docker compose up -d mlflow
+docker compose run --rm trainer poetry run dvc repro
+docker compose run --rm trainer poetry run python -m retail_recommender.pipelines.register_model
+docker compose down
+```
+
+O comando `docker compose down` preserva o volume do MLflow. Para remover também o banco e os artefatos persistidos:
+
+```bash
+docker compose down --volumes
+```
+
+## Comandos principais do Makefile
+
+O Makefile centraliza as operações do projeto.
+
+### Qualidade
+
+```bash
+make test
+make lint
+make format-check
+make quality
+```
+
+### DVC
+
+```bash
+make dvc-dag
+make dvc-status
+make pipeline
+```
+
+### MLflow local
+
+```bash
+make mlflow-local
+```
+
+No Windows, o servidor local utiliza um único worker para evitar problemas de multiprocessing.
+
+### Docker
+
+```bash
+make docker-build
+make docker-runtime
+make docker-pipeline
+```
+
+### Docker Compose
+
+```bash
+make compose-config
+make compose-up
+make compose-status
+make compose-dag
+make compose-pipeline
+make compose-register-model
+make compose-test
+make compose-down
+```
+
+### Validação final
+
+```bash
+make validate-local
+make compose-up
+make validate-compose
+make compose-down
+```
+
+## Execução local completa
+
+```bash
+poetry install --with dev
+cp .env.example .env
+poetry run dvc pull
+poetry run dvc repro
+poetry run dvc status
+make mlflow-local
+```
+
+Em outro terminal, para registrar o modelo selecionado:
+
+```bash
+poetry run python -m retail_recommender.pipelines.register_model
+```
+
+## Execução completa com Docker Compose
+
+```bash
+docker compose build
+docker compose up -d mlflow
+docker compose run --rm trainer poetry run dvc repro
+docker compose run --rm trainer poetry run python -m retail_recommender.pipelines.register_model
+docker compose down
+```
+
+A interface do MLflow fica disponível em:
+
+```text
+http://localhost:5000
+```
 
 ## Reprodutibilidade
 
@@ -931,8 +1216,6 @@ Para reprodutibilidade, prefira `poetry run dvc repro`.
 
 ### Bloco 1 — Fundação técnica
 
-Entregas principais:
-
 - estrutura inicial;
 - Poetry;
 - Ruff;
@@ -946,8 +1229,6 @@ Entregas principais:
 
 ### Bloco 2 — Dataset e DVC inicial
 
-Entregas principais:
-
 - RetailRocket;
 - DVC;
 - remote local;
@@ -959,8 +1240,6 @@ Entregas principais:
 
 ### Bloco 3 — Preparação dos dados
 
-Entregas principais:
-
 - Strategy para preprocessamento;
 - feedback implícito;
 - pesos de eventos;
@@ -969,63 +1248,79 @@ Entregas principais:
 - encoders;
 - cold start;
 - negative sampling;
-- `train_positive.parquet`;
-- `train.parquet`;
-- validação e teste;
+- datasets processados;
 - stages `preprocess` e `feature_engineering`.
 
 ### Bloco 4 — Modelagem, tracking e avaliação
 
-Entregas principais:
-
 - interface base dos recomendadores;
-- factory de modelos;
+- Factory de modelos;
 - Popularity;
 - Item-KNN;
 - Neural Collaborative Filtering;
-- dataset e DataLoader;
+- treinamento em PyTorch;
 - early stopping;
 - checkpoint;
-- treinamento reprodutível;
 - MLflow;
 - métricas Top-K;
 - avaliação dos três modelos;
 - comparação de resultados;
 - stages DVC `train` e `evaluate`;
-- centralização das configurações;
 - testes unitários e de integração.
+
+### Bloco 5 — Seleção, Registry e entrega
+
+- seleção automática pelo NDCG@10;
+- relatório `selected_model.json`;
+- integração com MLflow Model Registry;
+- empacotamento Item-KNN como `pyfunc`;
+- alias `staging`;
+- relatório de registro;
+- Dockerfile multi-stage;
+- imagens `runtime` e `pipeline`;
+- Docker Compose com `mlflow` e `trainer`;
+- persistência do backend e dos artefatos;
+- comandos finais no Makefile;
+- documentação de entrega.
 
 ## Limitações atuais
 
-- cold start não resolvido;
-- dados de conteúdo dos produtos ainda não utilizados;
+- cold start ainda não possui estratégia específica;
+- dados de conteúdo dos produtos não são utilizados;
 - avaliação limitada por `maximum_users`;
 - Neural CF apresentou overfitting inicial;
 - sem tuning sistemático;
 - sem hard negative sampling;
 - sem avaliação walk-forward;
 - sem retreinamento por janela móvel;
-- sem Model Registry efetivamente configurado;
-- sem Docker e CI/CD;
-- possível presença de falsos negativos entre itens não observados.
+- cobertura do Item-KNN é baixa;
+- possível presença de falsos negativos entre itens não observados;
+- o modelo registrado é destinado a experimentação;
+- não há serving de produção;
+- o alias `production` não é atribuído automaticamente;
+- não há monitoramento de drift ou métricas online.
 
 ## Próximos passos
 
-As próximas etapas previstas incluem:
-
-1. tuning e regularização do Neural CF;
-2. avaliação em amostra maior ou conjunto completo;
-3. análise comparativa das runs;
-4. seleção do melhor modelo;
-5. Model Registry;
-6. empacotamento com Docker;
-7. automação de qualidade e CI/CD;
-8. documentação final e roteiro do vídeo.
+1. ampliar a avaliação para todos os usuários elegíveis;
+2. realizar tuning controlado dos hiperparâmetros;
+3. avaliar janelas temporais adicionais;
+4. medir latência e consumo de memória;
+5. definir critérios formais de promoção para produção;
+6. criar estratégia específica para cold start;
+7. explorar propriedades dos itens;
+8. implementar serving somente após validação operacional;
+9. adicionar monitoramento de drift, cobertura e desempenho;
+10. avaliar diversidade, novidade e serendipidade.
 
 ## Conclusão
 
-O projeto possui agora uma cadeia reprodutível de ponta a ponta, desde o dado bruto até a comparação de modelos.
+O projeto possui uma cadeia reprodutível de ponta a ponta, desde o dado bruto até o modelo registrado.
 
-Os artefatos de dados são versionados pelo DVC, os parâmetros experimentais possuem fonte única em `params.yaml`, os caminhos são separados por responsabilidade nos arquivos de `configs/`, o treinamento e a avaliação são rastreados pelo MLflow, e os modelos são comparados por métricas de ranking Top-K.
+Os artefatos de dados são versionados pelo DVC, os parâmetros experimentais possuem fonte única em `params.yaml`, os caminhos são separados por responsabilidade nos arquivos de `configs/`, o treinamento e a avaliação são rastreados pelo MLflow e os modelos são comparados por métricas de ranking Top-K.
 
-O Bloco 4 encerra a primeira implementação completa do sistema de recomendação e deixa uma base consistente para tuning, governança de modelos, containerização e automação.
+O Item-KNN foi selecionado automaticamente pela melhor NDCG@10 na configuração avaliada, empacotado como MLflow PyFunc, registrado no Model Registry e associado ao alias `staging`.
+
+A containerização multi-stage e o Docker Compose permitem executar o pipeline e o tracking em ambientes isolados, enquanto o Makefile centraliza os comandos mais importantes do projeto.
+
+A entrega final combina recomendação, engenharia de software e práticas de MLOps em uma solução modular, testada, versionada, rastreável e reproduzível.
