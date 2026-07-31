@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,9 @@ LOGGER = logging.getLogger(__name__)
 
 PARAMS_PATH = Path("params.yaml")
 EVALUATION_CONFIG_PATH = Path("configs/evaluation.yaml")
+DATA_CONFIG_PATH = Path("configs/data.yaml")
+MODEL_CONFIG_PATH = Path("configs/model.yaml")
+TRAINING_CONFIG_PATH = Path("configs/training.yaml")
 
 BASELINE_REQUIRED_COLUMNS = {
     "user_idx",
@@ -63,19 +67,76 @@ MODEL_NAMES = (
 )
 
 
+@dataclass(frozen=True)
+class EvaluationPaths:
+    """Filesystem paths required by the evaluation pipeline."""
+
+    train_interactions: Path
+    test_data: Path
+    checkpoint: Path
+    training_report: Path
+    output_directory: Path
+
+
+def _load_evaluation_paths() -> EvaluationPaths:
+    """Load paths required by the evaluation pipeline."""
+    data_config = _load_yaml(DATA_CONFIG_PATH)
+    model_config = _get_mapping(
+        _load_yaml(MODEL_CONFIG_PATH),
+        "model",
+    )
+    training_config = _get_mapping(
+        _load_yaml(TRAINING_CONFIG_PATH),
+        "training",
+    )
+    evaluation_config = _get_mapping(
+        _load_yaml(EVALUATION_CONFIG_PATH),
+        "evaluation",
+    )
+
+    return EvaluationPaths(
+        train_interactions=Path(
+            _get_required_string(
+                data_config,
+                "train_positive_path",
+            )
+        ),
+        test_data=Path(
+            _get_required_string(
+                data_config,
+                "test_data_path",
+            )
+        ),
+        checkpoint=Path(
+            _get_required_string(
+                model_config,
+                "checkpoint_path",
+            )
+        ),
+        training_report=Path(
+            _get_required_string(
+                training_config,
+                "metrics_report_path",
+            )
+        ),
+        output_directory=Path(
+            _get_required_string(
+                evaluation_config,
+                "output_directory",
+            )
+        ),
+    )
+
+
 def run_evaluation() -> dict[str, EvaluationResult]:
     """Evaluate all project recommender models."""
+    paths = _load_evaluation_paths()
     params = _load_yaml(PARAMS_PATH)
-    evaluation_config = _load_yaml(EVALUATION_CONFIG_PATH)
 
     training_params = _get_mapping(params, "training")
     model_params = _get_mapping(params, "model")
     evaluation_params = _get_mapping(params, "evaluation")
     item_knn_params = _get_mapping(params, "item_knn")
-    evaluation_paths = _get_mapping(
-        evaluation_config,
-        "evaluation",
-    )
 
     random_seed = _get_required_int(
         training_params,
@@ -83,39 +144,8 @@ def run_evaluation() -> dict[str, EvaluationResult]:
     )
     set_global_seed(random_seed)
 
-    train_interactions_path = Path(
-        _get_required_string(
-            evaluation_paths,
-            "train_interactions_path",
-        )
-    )
-    test_path = Path(
-        _get_required_string(
-            evaluation_paths,
-            "test_data_path",
-        )
-    )
-    checkpoint_path = Path(
-        _get_required_string(
-            evaluation_paths,
-            "checkpoint_path",
-        )
-    )
-    training_report_path = Path(
-        _get_required_string(
-            evaluation_paths,
-            "training_report_path",
-        )
-    )
-    output_directory = Path(
-        _get_required_string(
-            evaluation_paths,
-            "output_directory",
-        )
-    )
-
-    train_interactions = pd.read_parquet(train_interactions_path)
-    test_interactions = pd.read_parquet(test_path)
+    train_interactions = pd.read_parquet(paths.train_interactions)
+    test_interactions = pd.read_parquet(paths.test_data)
 
     _validate_interactions(
         train_interactions,
@@ -152,14 +182,14 @@ def run_evaluation() -> dict[str, EvaluationResult]:
         evaluation_params,
         "maximum_users",
     )
-    num_users, num_items = _load_model_dimensions(training_report_path)
+    num_users, num_items = _load_model_dimensions(paths.training_report)
 
     models = _build_models(
         train_interactions=train_interactions,
         model_params=model_params,
         item_knn_params=item_knn_params,
         evaluation_params=evaluation_params,
-        checkpoint_path=checkpoint_path,
+        checkpoint_path=paths.checkpoint,
         num_users=num_users,
         num_items=num_items,
     )
@@ -167,7 +197,7 @@ def run_evaluation() -> dict[str, EvaluationResult]:
     results: dict[str, EvaluationResult] = {}
     tracker = MLflowTracker()
 
-    output_directory.mkdir(
+    paths.output_directory.mkdir(
         parents=True,
         exist_ok=True,
     )
@@ -211,7 +241,7 @@ def run_evaluation() -> dict[str, EvaluationResult]:
             )
             tracker.log_metrics(result.to_dict())
 
-            report_path = output_directory / f"{model_name}_metrics.json"
+            report_path = paths.output_directory / f"{model_name}_metrics.json"
             write_evaluation_report(
                 result=result,
                 path=report_path,
@@ -222,7 +252,7 @@ def run_evaluation() -> dict[str, EvaluationResult]:
                 artifact_directory="evaluation",
             )
 
-    comparison_path = output_directory / "model_comparison.csv"
+    comparison_path = paths.output_directory / "model_comparison.csv"
     write_model_comparison(
         results=results,
         path=comparison_path,

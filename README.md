@@ -213,7 +213,6 @@ RAW_DATA_DIR=data/raw
 INTERIM_DATA_DIR=data/interim
 PROCESSED_DATA_DIR=data/processed
 ARTIFACTS_DIR=artifacts
-RANDOM_SEED=317
 ```
 
 O arquivo `.env.example` deve ser versionado.
@@ -823,10 +822,10 @@ Os negativos são gerados somente entre pares usuário-item sem interação posi
 
 O projeto usa seeds fixas para reduzir variação entre execuções.
 
-A seed configurada é:
+A seed configurada em:
 
 ```text
-RANDOM_SEED=317
+params.yaml → training.random_seed
 ```
 
 Ela é utilizada nas etapas que exigem aleatoriedade, incluindo:

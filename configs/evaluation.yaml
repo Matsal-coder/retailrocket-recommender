@@ -1,17 +1,2 @@
 evaluation:
-  k: 10
-  primary_metric: ndcg_at_10
-  metrics:
-    - precision_at_10
-    - recall_at_10
-    - ndcg_at_10
-    - map_at_10
-    - coverage_at_10
-  exclude_seen_items: true
-  test_metrics_path: artifacts/reports/test_metrics.json
-  model_comparison_path: artifacts/reports/model_comparison.csv
-  train_interactions_path: data/processed/train_positive.parquet
-  test_data_path: data/processed/test.parquet
-  checkpoint_path: artifacts/models/best_model.pt
-  training_report_path: artifacts/reports/train_metrics.json
   output_directory: artifacts/reports/evaluation

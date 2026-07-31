@@ -61,6 +61,7 @@ stages:
   train:
     cmd: poetry run python -m retail_recommender.pipelines.train
     deps:
+    - configs/data.yaml
     - configs/model.yaml
     - configs/training.yaml
     - data/processed/train.parquet
@@ -93,6 +94,9 @@ stages:
     deps:
     - artifacts/models/best_model.pt
     - artifacts/reports/train_metrics.json
+    - configs/data.yaml
+    - configs/model.yaml
+    - configs/training.yaml
     - configs/evaluation.yaml
     - data/processed/test.parquet
     - data/processed/train_positive.parquet

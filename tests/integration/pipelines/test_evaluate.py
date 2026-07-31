@@ -55,7 +55,10 @@ def test_evaluation_pipeline_generates_model_reports(
     training_report_path = tmp_path / "train_metrics.json"
     output_directory = tmp_path / "evaluation"
     params_path = tmp_path / "params.yaml"
-    config_path = tmp_path / "evaluation.yaml"
+    data_config_path = tmp_path / "data.yaml"
+    model_config_path = tmp_path / "model.yaml"
+    training_config_path = tmp_path / "training.yaml"
+    evaluation_config_path = tmp_path / "evaluation.yaml"
     mlflow_database = tmp_path / "mlflow.db"
 
     train_interactions = pd.DataFrame(
@@ -144,14 +147,39 @@ def test_evaluation_pipeline_generates_model_reports(
         ),
         encoding="utf-8",
     )
-    config_path.write_text(
+    data_config_path.write_text(
+        yaml.safe_dump(
+            {
+                "train_positive_path": str(train_interactions_path),
+                "test_data_path": str(test_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+    model_config_path.write_text(
+        yaml.safe_dump(
+            {
+                "model": {
+                    "checkpoint_path": str(checkpoint_path),
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    training_config_path.write_text(
+        yaml.safe_dump(
+            {
+                "training": {
+                    "metrics_report_path": str(training_report_path),
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    evaluation_config_path.write_text(
         yaml.safe_dump(
             {
                 "evaluation": {
-                    "train_interactions_path": str(train_interactions_path),
-                    "test_data_path": str(test_path),
-                    "checkpoint_path": str(checkpoint_path),
-                    "training_report_path": str(training_report_path),
                     "output_directory": str(output_directory),
                 }
             }
@@ -166,8 +194,23 @@ def test_evaluation_pipeline_generates_model_reports(
     )
     monkeypatch.setattr(
         evaluate_pipeline,
+        "DATA_CONFIG_PATH",
+        data_config_path,
+    )
+    monkeypatch.setattr(
+        evaluate_pipeline,
+        "MODEL_CONFIG_PATH",
+        model_config_path,
+    )
+    monkeypatch.setattr(
+        evaluate_pipeline,
+        "TRAINING_CONFIG_PATH",
+        training_config_path,
+    )
+    monkeypatch.setattr(
+        evaluate_pipeline,
         "EVALUATION_CONFIG_PATH",
-        config_path,
+        evaluation_config_path,
     )
     monkeypatch.setattr(
         evaluate_pipeline,

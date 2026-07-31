@@ -52,6 +52,7 @@ def test_train_pipeline_generates_outputs(
     params_path = tmp_path / "params.yaml"
     model_config_path = tmp_path / "model.yaml"
     training_config_path = tmp_path / "training.yaml"
+    data_config_path = tmp_path / "data.yaml"
 
     params_path.write_text(
         yaml.safe_dump(
@@ -90,13 +91,26 @@ def test_train_pipeline_generates_outputs(
         yaml.safe_dump(
             {
                 "training": {
-                    "train_data_path": str(train_path),
-                    "validation_data_path": str(validation_path),
                     "metrics_report_path": str(report_path),
                 }
             }
         ),
         encoding="utf-8",
+    )
+    data_config_path.write_text(
+        yaml.safe_dump(
+            {
+                "train_data_path": str(train_path),
+                "validation_data_path": str(validation_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        train_pipeline,
+        "DATA_CONFIG_PATH",
+        data_config_path,
     )
 
     monkeypatch.setattr(

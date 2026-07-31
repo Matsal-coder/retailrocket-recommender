@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
@@ -11,10 +10,7 @@ from typing import Any
 import mlflow
 from mlflow.entities import Run
 
-DEFAULT_EXPERIMENT_NAME = "retailrocket-recommender"
-
-TRACKING_URI_ENV = "MLFLOW_TRACKING_URI"
-EXPERIMENT_NAME_ENV = "MLFLOW_EXPERIMENT_NAME"
+from retail_recommender.config.settings import get_settings
 
 
 class MLflowTracker:
@@ -37,20 +33,23 @@ class MLflowTracker:
         Raises:
             ValueError: If an explicitly supplied experiment name is empty.
         """
+        settings = get_settings()
+        resolved_tracking_uri = (
+            tracking_uri if tracking_uri is not None else settings.mlflow_tracking_uri
+        )
         resolved_experiment_name = (
             experiment_name
             if experiment_name is not None
-            else os.getenv(
-                EXPERIMENT_NAME_ENV,
-                DEFAULT_EXPERIMENT_NAME,
-            )
+            else settings.mlflow_experiment_name
         )
 
         if not resolved_experiment_name.strip():
             msg = "experiment_name must not be empty"
             raise ValueError(msg)
 
-        self.tracking_uri = self._resolve_tracking_uri(tracking_uri)
+        self.tracking_uri = (
+            resolved_tracking_uri.strip() if resolved_tracking_uri else None
+        )
         self.experiment_name = resolved_experiment_name.strip()
 
         self.configure()
@@ -186,23 +185,6 @@ class MLflowTracker:
         """Set additional tags on the active run."""
         if tags:
             mlflow.set_tags(dict(tags))
-
-    @staticmethod
-    def _resolve_tracking_uri(
-        explicit_tracking_uri: str | None,
-    ) -> str | None:
-        """Resolve tracking URI from argument or environment."""
-        if explicit_tracking_uri is not None:
-            normalized_uri = explicit_tracking_uri.strip()
-            return normalized_uri or None
-
-        environment_uri = os.getenv(TRACKING_URI_ENV)
-
-        if environment_uri is None:
-            return None
-
-        normalized_uri = environment_uri.strip()
-        return normalized_uri or None
 
     @staticmethod
     def _normalize_parameter_value(value: Any) -> Any:

@@ -2,33 +2,49 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from retail_recommender.config.settings import (
+    DEFAULT_MLFLOW_EXPERIMENT_NAME,
+    DEFAULT_MLFLOW_TRACKING_URI,
+    get_settings,
+)
 from retail_recommender.tracking.mlflow_tracker import (
-    DEFAULT_EXPERIMENT_NAME,
     MLflowTracker,
 )
 
 CUSTOM_EXPERIMENT_NAME = "test-experiment"
-CUSTOM_TRACKING_URI = "http://127.0.0.1:5000"
+CUSTOM_TRACKING_URI = "sqlite:///custom-mlflow.db"
 TEST_EPOCH = 2
 
 
-@patch("retail_recommender.tracking.mlflow_tracker.mlflow")
-def test_tracker_configures_explicit_tracking_uri(
-    mlflow_mock: MagicMock,
-) -> None:
-    tracker = MLflowTracker(
-        tracking_uri=CUSTOM_TRACKING_URI,
-        experiment_name=CUSTOM_EXPERIMENT_NAME,
-    )
+@pytest.fixture(autouse=True)
+def clear_settings_cache() -> Iterator[None]:
+    """Clear cached settings around every test."""
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
-    mlflow_mock.set_tracking_uri.assert_called_once_with(CUSTOM_TRACKING_URI)
-    mlflow_mock.set_experiment.assert_called_once_with(CUSTOM_EXPERIMENT_NAME)
-    assert tracker.tracking_uri == CUSTOM_TRACKING_URI
+
+@patch("retail_recommender.tracking.mlflow_tracker.mlflow")
+def test_tracker_uses_default_tracking_uri(
+    mlflow_mock: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(
+        "MLFLOW_TRACKING_URI",
+        raising=False,
+    )
+    get_settings.cache_clear()
+
+    tracker = MLflowTracker(experiment_name=CUSTOM_EXPERIMENT_NAME)
+
+    assert tracker.tracking_uri == DEFAULT_MLFLOW_TRACKING_URI
+    mlflow_mock.set_tracking_uri.assert_called_once_with(DEFAULT_MLFLOW_TRACKING_URI)
 
 
 @patch("retail_recommender.tracking.mlflow_tracker.mlflow")
@@ -43,8 +59,8 @@ def test_tracker_uses_default_experiment_name(
 
     tracker = MLflowTracker()
 
-    mlflow_mock.set_experiment.assert_called_once_with(DEFAULT_EXPERIMENT_NAME)
-    assert tracker.experiment_name == DEFAULT_EXPERIMENT_NAME
+    mlflow_mock.set_experiment.assert_called_once_with(DEFAULT_MLFLOW_EXPERIMENT_NAME)
+    assert tracker.experiment_name == DEFAULT_MLFLOW_EXPERIMENT_NAME
 
 
 @patch("retail_recommender.tracking.mlflow_tracker.mlflow")
@@ -60,28 +76,39 @@ def test_tracker_uses_environment_configuration(
         "MLFLOW_EXPERIMENT_NAME",
         CUSTOM_EXPERIMENT_NAME,
     )
+    get_settings.cache_clear()
 
     tracker = MLflowTracker()
 
     assert tracker.tracking_uri == CUSTOM_TRACKING_URI
     assert tracker.experiment_name == CUSTOM_EXPERIMENT_NAME
     mlflow_mock.set_tracking_uri.assert_called_once_with(CUSTOM_TRACKING_URI)
+    mlflow_mock.set_experiment.assert_called_once_with(CUSTOM_EXPERIMENT_NAME)
 
 
 @patch("retail_recommender.tracking.mlflow_tracker.mlflow")
-def test_tracker_keeps_mlflow_default_when_uri_is_absent(
+def test_tracker_prioritizes_explicit_configuration(
     mlflow_mock: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv(
+    monkeypatch.setenv(
         "MLFLOW_TRACKING_URI",
-        raising=False,
+        "sqlite:///environment.db",
+    )
+    monkeypatch.setenv(
+        "MLFLOW_EXPERIMENT_NAME",
+        "environment-experiment",
+    )
+    get_settings.cache_clear()
+
+    tracker = MLflowTracker(
+        tracking_uri=CUSTOM_TRACKING_URI,
+        experiment_name=CUSTOM_EXPERIMENT_NAME,
     )
 
-    tracker = MLflowTracker(experiment_name=CUSTOM_EXPERIMENT_NAME)
-
-    assert tracker.tracking_uri is None
-    mlflow_mock.set_tracking_uri.assert_not_called()
+    assert tracker.tracking_uri == CUSTOM_TRACKING_URI
+    assert tracker.experiment_name == CUSTOM_EXPERIMENT_NAME
+    mlflow_mock.set_tracking_uri.assert_called_once_with(CUSTOM_TRACKING_URI)
 
 
 def test_tracker_rejects_empty_experiment_name() -> None:

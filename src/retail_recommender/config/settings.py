@@ -8,6 +8,8 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AppEnvironment = Literal["local", "dev", "staging", "prod"]
+DEFAULT_MLFLOW_TRACKING_URI = "sqlite:///mlflow.db"
+DEFAULT_MLFLOW_EXPERIMENT_NAME = "retailrocket-recommender"
 
 
 class Settings(BaseSettings):
@@ -21,6 +23,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        env_ignore_empty=True,
         extra="ignore",
     )
 
@@ -40,14 +43,12 @@ class Settings(BaseSettings):
     )
     artifacts_dir: Path = Field(default=Path("artifacts"), alias="ARTIFACTS_DIR")
 
-    random_seed: int = Field(default=317, alias="RANDOM_SEED")
-
     mlflow_tracking_uri: str | None = Field(
-        default=None,
+        default=DEFAULT_MLFLOW_TRACKING_URI,
         alias="MLFLOW_TRACKING_URI",
     )
     mlflow_experiment_name: str = Field(
-        default="retailrocket-recommender",
+        default=DEFAULT_MLFLOW_EXPERIMENT_NAME,
         alias="MLFLOW_EXPERIMENT_NAME",
     )
 

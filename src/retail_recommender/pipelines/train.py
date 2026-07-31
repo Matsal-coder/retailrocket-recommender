@@ -29,6 +29,7 @@ from retail_recommender.training.trainer import (
 LOGGER = logging.getLogger(__name__)
 
 PARAMS_PATH = Path("params.yaml")
+DATA_CONFIG_PATH = Path("configs/data.yaml")
 MODEL_CONFIG_PATH = Path("configs/model.yaml")
 TRAINING_CONFIG_PATH = Path("configs/training.yaml")
 
@@ -42,10 +43,15 @@ REQUIRED_INTERACTION_COLUMNS = {
 def run_training() -> TrainingResult:
     """Run the complete neural recommendation training pipeline."""
     params = _load_yaml(PARAMS_PATH)
+    data_config = _load_yaml(DATA_CONFIG_PATH)
     model_config = _load_yaml(MODEL_CONFIG_PATH)
     training_config = _load_yaml(TRAINING_CONFIG_PATH)
 
     model_params = _get_mapping(params, "model")
+    model_name = _get_required_string(
+        model_params,
+        "name",
+    )
     training_params = _get_mapping(params, "training")
 
     model_paths = _get_mapping(model_config, "model")
@@ -62,13 +68,13 @@ def run_training() -> TrainingResult:
 
     train_path = Path(
         _get_required_string(
-            training_paths,
+            data_config,
             "train_data_path",
         )
     )
     validation_path = Path(
         _get_required_string(
-            training_paths,
+            data_config,
             "validation_data_path",
         )
     )
@@ -224,7 +230,7 @@ def run_training() -> TrainingResult:
             result=training_result,
             path=metrics_report_path,
             model_metadata={
-                "model_name": "neural_cf",
+                "model_name": model_name,
                 "num_users": num_users,
                 "num_items": num_items,
                 "embedding_dim": embedding_dim,

@@ -158,14 +158,18 @@ stages:
   train:
     cmd: poetry run python -m retail_recommender.pipelines.train
     deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 2ef0f49eb8fd9ab4c96bdbd808afee48
+      size: 794
     - path: configs/model.yaml
       hash: md5
       md5: 675f6db08bd0b143a66633412ea8d293
       size: 59
     - path: configs/training.yaml
       hash: md5
-      md5: 8373416a5b82570f184c82dd048c0ca4
-      size: 180
+      md5: 57c73baffc600243ff45c13b7311ee89
+      size: 72
     - path: data/processed/train.parquet
       hash: md5
       md5: 58529c5de2df62f759773382329105e9
@@ -180,12 +184,12 @@ stages:
       size: 7308
     - path: src/retail_recommender/pipelines/train.py
       hash: md5
-      md5: 7b4ad4037801ecdba964fbef84d78873
-      size: 12546
+      md5: fa466282595c0ca34196f28ecb7be284
+      size: 12720
     - path: src/retail_recommender/tracking/mlflow_tracker.py
       hash: md5
-      md5: 424c58d6afc8a7bf4fe7a5165b8fcbe6
-      size: 6409
+      md5: a576ff81e66015295e533ac5db9e045f
+      size: 5911
     - path: src/retail_recommender/training/dataset.py
       hash: md5
       md5: cc04d17eb40785c5d1c478a748090759
@@ -238,10 +242,22 @@ stages:
       hash: md5
       md5: 3706925a4e30501110df57a03968eb62
       size: 1327
+    - path: configs/data.yaml
+      hash: md5
+      md5: 2ef0f49eb8fd9ab4c96bdbd808afee48
+      size: 794
     - path: configs/evaluation.yaml
       hash: md5
-      md5: 65a94831ef25cc7394f705358a67c9da
-      size: 591
+      md5: e8e1bf4073c237317f317dc8bbe36aeb
+      size: 63
+    - path: configs/model.yaml
+      hash: md5
+      md5: 675f6db08bd0b143a66633412ea8d293
+      size: 59
+    - path: configs/training.yaml
+      hash: md5
+      md5: 57c73baffc600243ff45c13b7311ee89
+      size: 72
     - path: data/processed/test.parquet
       hash: md5
       md5: 516a10f41bb2f7cfcb246343056d869e
@@ -280,12 +296,12 @@ stages:
       size: 6197
     - path: src/retail_recommender/pipelines/evaluate.py
       hash: md5
-      md5: c1606e87b9252f06080f0094ef4f48b9
-      size: 15049
+      md5: 00148e1b1202160f6c5ac203e2d2de02
+      size: 15988
     - path: src/retail_recommender/tracking/mlflow_tracker.py
       hash: md5
-      md5: 424c58d6afc8a7bf4fe7a5165b8fcbe6
-      size: 6409
+      md5: a576ff81e66015295e533ac5db9e045f
+      size: 5911
     - path: src/retail_recommender/training/seed.py
       hash: md5
       md5: 6500d5a44aa5bcf2e1ae62b938582495
