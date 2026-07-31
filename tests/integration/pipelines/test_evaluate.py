@@ -54,6 +54,9 @@ def test_evaluation_pipeline_generates_model_reports(
     checkpoint_path = tmp_path / "best_model.pt"
     training_report_path = tmp_path / "train_metrics.json"
     output_directory = tmp_path / "evaluation"
+    model_comparison_path = output_directory / "model_comparison.csv"
+    selected_model_path = output_directory / "selected_model.json"
+
     params_path = tmp_path / "params.yaml"
     data_config_path = tmp_path / "data.yaml"
     model_config_path = tmp_path / "model.yaml"
@@ -143,6 +146,14 @@ def test_evaluation_pipeline_generates_model_reports(
                     "n_neighbors": 2,
                     "minimum_similarity": 0.0,
                 },
+                "model_selection": {
+                    "primary_metric": "ndcg_at_k",
+                    "tie_breakers": [
+                        "recall_at_k",
+                        "map_at_k",
+                        "coverage_at_k",
+                    ],
+                },
             }
         ),
         encoding="utf-8",
@@ -181,6 +192,8 @@ def test_evaluation_pipeline_generates_model_reports(
             {
                 "evaluation": {
                     "output_directory": str(output_directory),
+                    "model_comparison_path": str(model_comparison_path),
+                    "selected_model_path": str(selected_model_path),
                 }
             }
         ),
@@ -244,10 +257,18 @@ def test_evaluation_pipeline_generates_model_reports(
         assert report["metrics"]["evaluated_users"] == EXPECTED_EVALUATED_USERS
         assert report["metrics"]["k"] == DEFAULT_K
 
-    comparison_path = output_directory / "model_comparison.csv"
-    assert comparison_path.exists()
+    assert model_comparison_path.exists()
 
-    comparison = pd.read_csv(comparison_path)
+    comparison = pd.read_csv(model_comparison_path)
+
+    assert selected_model_path.exists()
+
+    selected_model = json.loads(selected_model_path.read_text(encoding="utf-8"))
+
+    assert selected_model["model_name"] == "item_knn"
+    assert selected_model["primary_metric"] == "ndcg_at_k"
+    assert selected_model["k"] == DEFAULT_K
+    assert selected_model["evaluated_users"] == EXPECTED_EVALUATED_USERS
 
     assert set(comparison["model_name"]) == {
         "popularity",

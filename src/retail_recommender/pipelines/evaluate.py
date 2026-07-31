@@ -17,6 +17,11 @@ from retail_recommender.evaluation.evaluator import (
     EvaluationResult,
     RecommenderEvaluator,
 )
+from retail_recommender.evaluation.model_selector import (
+    load_model_comparison,
+    save_model_selection,
+    select_best_model,
+)
 from retail_recommender.evaluation.neural_recommender import (
     NeuralCFRecommender,
 )
@@ -76,6 +81,8 @@ class EvaluationPaths:
     checkpoint: Path
     training_report: Path
     output_directory: Path
+    model_comparison: Path
+    selected_model: Path
 
 
 def _load_evaluation_paths() -> EvaluationPaths:
@@ -125,6 +132,18 @@ def _load_evaluation_paths() -> EvaluationPaths:
                 "output_directory",
             )
         ),
+        model_comparison=Path(
+            _get_required_string(
+                evaluation_config,
+                "model_comparison_path",
+            )
+        ),
+        selected_model=Path(
+            _get_required_string(
+                evaluation_config,
+                "selected_model_path",
+            )
+        ),
     )
 
 
@@ -137,6 +156,10 @@ def run_evaluation() -> dict[str, EvaluationResult]:
     model_params = _get_mapping(params, "model")
     evaluation_params = _get_mapping(params, "evaluation")
     item_knn_params = _get_mapping(params, "item_knn")
+    model_selection_params = _get_mapping(
+        params,
+        "model_selection",
+    )
 
     random_seed = _get_required_int(
         training_params,
@@ -181,6 +204,14 @@ def run_evaluation() -> dict[str, EvaluationResult]:
     maximum_users = _get_optional_int(
         evaluation_params,
         "maximum_users",
+    )
+    primary_metric = _get_required_string(
+        model_selection_params,
+        "primary_metric",
+    )
+    tie_breakers = _get_required_string_sequence(
+        model_selection_params,
+        "tie_breakers",
     )
     num_users, num_items = _load_model_dimensions(paths.training_report)
 
@@ -252,10 +283,27 @@ def run_evaluation() -> dict[str, EvaluationResult]:
                 artifact_directory="evaluation",
             )
 
-    comparison_path = paths.output_directory / "model_comparison.csv"
     write_model_comparison(
         results=results,
-        path=comparison_path,
+        path=paths.model_comparison,
+    )
+
+    comparison = load_model_comparison(paths.model_comparison)
+    selection = select_best_model(
+        comparison=comparison,
+        primary_metric=primary_metric,
+        tie_breakers=tie_breakers,
+    )
+    save_model_selection(
+        selection=selection,
+        output_path=paths.selected_model,
+    )
+
+    LOGGER.info(
+        "Selected model '%s' using %s=%.6f.",
+        selection.model_name,
+        selection.primary_metric,
+        selection.primary_metric_value,
     )
 
     with tracker.run(
@@ -263,6 +311,7 @@ def run_evaluation() -> dict[str, EvaluationResult]:
         tags={
             "pipeline": "evaluate",
             "artifact_type": "comparison",
+            "selected_model": selection.model_name,
         },
     ):
         tracker.log_parameters(
@@ -270,10 +319,22 @@ def run_evaluation() -> dict[str, EvaluationResult]:
                 "models": list(MODEL_NAMES),
                 "k": k,
                 "random_seed": random_seed,
+                "primary_metric": selection.primary_metric,
+                "selected_model": selection.model_name,
+                "tie_breakers": list(tie_breakers),
+            }
+        )
+        tracker.log_metrics(
+            {
+                "selected_primary_metric_value": (selection.primary_metric_value),
             }
         )
         tracker.log_artifact(
-            comparison_path,
+            paths.model_comparison,
+            artifact_directory="evaluation",
+        )
+        tracker.log_artifact(
+            paths.selected_model,
             artifact_directory="evaluation",
         )
 
@@ -570,6 +631,25 @@ def _get_required_int_sequence(
         raise ValueError(msg)
 
     return tuple(value)
+
+
+def _get_required_string_sequence(
+    mapping: Mapping[str, Any],
+    key: str,
+) -> tuple[str, ...]:
+    """Return a required non-empty sequence of strings."""
+
+    value = mapping.get(key)
+
+    if not isinstance(value, list) or not value:
+        message = f"Configuration key '{key}' must be a non-empty list."
+        raise ValueError(message)
+
+    if not all(isinstance(item, str) and item.strip() for item in value):
+        message = f"Configuration key '{key}' must contain only non-empty strings."
+        raise ValueError(message)
+
+    return tuple(item.strip() for item in value)
 
 
 def main() -> None:

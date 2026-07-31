@@ -53,3 +53,10 @@ evaluation:
 item_knn:
   n_neighbors: 50
   minimum_similarity: 0.0
+
+model_selection:
+  primary_metric: ndcg_at_k
+  tie_breakers:
+    - recall_at_k
+    - map_at_k
+    - coverage_at_k

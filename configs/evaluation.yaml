@@ -1,2 +1,4 @@
 evaluation:
   output_directory: artifacts/reports/evaluation
+  model_comparison_path: artifacts/reports/evaluation/model_comparison.csv
+  selected_model_path: artifacts/reports/evaluation/selected_model.json

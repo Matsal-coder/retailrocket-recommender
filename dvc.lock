@@ -248,8 +248,8 @@ stages:
       size: 794
     - path: configs/evaluation.yaml
       hash: md5
-      md5: e8e1bf4073c237317f317dc8bbe36aeb
-      size: 63
+      md5: faef1d1fdd17749ffc6c45e521750fd9
+      size: 212
     - path: configs/model.yaml
       hash: md5
       md5: 675f6db08bd0b143a66633412ea8d293
@@ -270,6 +270,10 @@ stages:
       hash: md5
       md5: 0b4dfbb5eb6aaf4f62329461de9b9497
       size: 5641
+    - path: src/retail_recommender/evaluation/model_selector.py
+      hash: md5
+      md5: 52452642f35d08c869571c8bdd53c62b
+      size: 4014
     - path: src/retail_recommender/evaluation/neural_recommender.py
       hash: md5
       md5: 2102a59c58cbb78eb61c7c2dfee39929
@@ -296,8 +300,8 @@ stages:
       size: 6197
     - path: src/retail_recommender/pipelines/evaluate.py
       hash: md5
-      md5: 00148e1b1202160f6c5ac203e2d2de02
-      size: 15988
+      md5: dbdf61ac5ce1d3c76fec4cfb893f0b19
+      size: 18410
     - path: src/retail_recommender/tracking/mlflow_tracker.py
       hash: md5
       md5: a576ff81e66015295e533ac5db9e045f
@@ -320,10 +324,15 @@ stages:
         - 64
         - 32
         model.name: neural_cf
+        model_selection.primary_metric: ndcg_at_k
+        model_selection.tie_breakers:
+        - recall_at_k
+        - map_at_k
+        - coverage_at_k
         training.random_seed: 1729
     outs:
     - path: artifacts/reports/evaluation
       hash: md5
-      md5: 830e8a24fcaa656c59c86402fcc0faf6.dir
-      size: 1090
-      nfiles: 4
+      md5: 06461a9ad1171acd72b38170dab25219.dir
+      size: 1394
+      nfiles: 5

@@ -101,6 +101,7 @@ stages:
     - data/processed/test.parquet
     - data/processed/train_positive.parquet
     - src/retail_recommender/evaluation/evaluator.py
+    - src/retail_recommender/evaluation/model_selector.py
     - src/retail_recommender/evaluation/neural_recommender.py
     - src/retail_recommender/evaluation/ranking_metrics.py
     - src/retail_recommender/evaluation/reports.py
@@ -121,6 +122,8 @@ stages:
     - model.embedding_dim
     - model.hidden_layers
     - model.name
+    - model_selection.primary_metric
+    - model_selection.tie_breakers
     - training.random_seed
     outs:
     - artifacts/reports/evaluation

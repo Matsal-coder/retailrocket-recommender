@@ -29,6 +29,8 @@ def test_load_evaluation_paths_uses_centralized_configs(
     checkpoint_path = tmp_path / "best_model.pt"
     report_path = tmp_path / "train_metrics.json"
     output_directory = tmp_path / "evaluation"
+    model_comparison_path = output_directory / "model_comparison.csv"
+    selected_model_path = output_directory / "selected_model.json"
 
     data_config_path = tmp_path / "data.yaml"
     model_config_path = tmp_path / "model.yaml"
@@ -69,6 +71,8 @@ def test_load_evaluation_paths_uses_centralized_configs(
             {
                 "evaluation": {
                     "output_directory": str(output_directory),
+                    "model_comparison_path": str(model_comparison_path),
+                    "selected_model_path": str(selected_model_path),
                 }
             }
         ),
@@ -103,6 +107,8 @@ def test_load_evaluation_paths_uses_centralized_configs(
     assert paths.checkpoint == checkpoint_path
     assert paths.training_report == report_path
     assert paths.output_directory == output_directory
+    assert paths.model_comparison == model_comparison_path
+    assert paths.selected_model == selected_model_path
 
 
 def test_positive_interactions_filters_negative_samples() -> None:
@@ -199,4 +205,41 @@ def test_validate_interactions_rejects_missing_baseline_columns() -> None:
             interactions,
             split_name="training",
             required_columns=BASELINE_REQUIRED_COLUMNS,
+        )
+
+
+def test_get_required_string_sequence_returns_tuple() -> None:
+    result = evaluate_pipeline._get_required_string_sequence(
+        {
+            "tie_breakers": [
+                "recall_at_k",
+                "map_at_k",
+            ]
+        },
+        "tie_breakers",
+    )
+
+    assert result == (
+        "recall_at_k",
+        "map_at_k",
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        None,
+        [],
+        "recall_at_k",
+        [""],
+        ["recall_at_k", 10],
+    ],
+)
+def test_get_required_string_sequence_rejects_invalid_value(
+    value: object,
+) -> None:
+    with pytest.raises(ValueError, match="tie_breakers"):
+        evaluate_pipeline._get_required_string_sequence(
+            {"tie_breakers": value},
+            "tie_breakers",
         )
