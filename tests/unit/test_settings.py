@@ -11,6 +11,9 @@ def test_settings_has_default_values() -> None:
 
     assert settings.app_name == "retailrocket-recommender"
     assert settings.app_env == "local"
+    assert settings.mlflow_registered_model_name == "RetailRocketRecommender"
+    assert settings.mlflow_staging_alias == "staging"
+    assert settings.mlflow_production_alias == "production"
 
 
 def test_settings_uses_path_objects() -> None:

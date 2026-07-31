@@ -51,6 +51,9 @@ class Settings(BaseSettings):
         default=DEFAULT_MLFLOW_EXPERIMENT_NAME,
         alias="MLFLOW_EXPERIMENT_NAME",
     )
+    mlflow_registered_model_name: str = "RetailRocketRecommender"
+    mlflow_staging_alias: str = "staging"
+    mlflow_production_alias: str = "production"
 
 
 @lru_cache
