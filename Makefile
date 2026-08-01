@@ -174,6 +174,10 @@ compose-dag: ## Display the DVC DAG inside the trainer container
 compose-status-dvc: ## Check DVC status inside the trainer container
 	$(COMPOSE) run --rm trainer poetry run dvc status
 
+.PHONY: promote-model compose-promote-model
+compose-promote-model: ## Promote the selected model to production through Docker Compose
+	$(COMPOSE) run --rm trainer poetry run python -m retail_recommender.pipelines.register_model --promote-to-production
+
 .PHONY: compose-pipeline
 compose-pipeline: ## Reproduce the DVC pipeline inside the trainer container
 	$(COMPOSE) run --rm trainer poetry run dvc repro

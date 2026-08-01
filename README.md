@@ -947,7 +947,14 @@ Relatório:
 artifacts/reports/registry/model_registration.json
 ```
 
-O alias `production` não é atribuído automaticamente. A promoção para produção deve exigir avaliação representativa, validação de negócio e testes operacionais adicionais.
+O alias `production` não é atribuído no fluxo padrão. A promoção exige a
+opção explícita `--promote-to-production`, preservando a separação entre
+registro, validação em staging e promoção deliberada.
+
+```bash
+poetry run python -m retail_recommender.pipelines.register_model \
+  --promote-to-production
+```
 
 ## Docker
 

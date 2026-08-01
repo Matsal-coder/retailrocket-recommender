@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 from collections.abc import Mapping
@@ -457,10 +458,30 @@ def _get_required_float(
     return float(value)
 
 
+def _parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+
+    parser = argparse.ArgumentParser(
+        description="Register the selected model in MLflow.",
+    )
+    parser.add_argument(
+        "--promote-to-production",
+        action="store_true",
+        help=(
+            "Assign the production alias to the newly registered "
+            "model version after staging."
+        ),
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
     """Run model registration from the command line."""
 
-    result = run_model_registration()
+    args = _parse_args()
+    result = run_model_registration(
+        promote_to_production=args.promote_to_production,
+    )
     print(
         "Registered "
         f"{result.registered_model_name} "

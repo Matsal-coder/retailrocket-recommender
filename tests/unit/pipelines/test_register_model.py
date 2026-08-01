@@ -122,6 +122,35 @@ def test_write_registration_report_writes_json(
     assert saved["alias"] == "staging"
 
 
+def test_parse_args_disables_production_promotion_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "sys.argv",
+        ["register_model"],
+    )
+
+    args = register_model_pipeline._parse_args()
+
+    assert args.promote_to_production is False
+
+
+def test_parse_args_enables_explicit_production_promotion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "register_model",
+            "--promote-to-production",
+        ],
+    )
+
+    args = register_model_pipeline._parse_args()
+
+    assert args.promote_to_production is True
+
+
 def test_load_registration_paths_uses_centralized_configs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -184,3 +213,49 @@ def test_load_registration_paths_uses_centralized_configs(
     assert paths.train_interactions == train_path
     assert paths.selected_model == selected_model_path
     assert paths.registry_report == registry_report_path
+
+
+def test_main_forwards_production_promotion_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    expected_result = RegistrationResult(
+        registered_model_name="RetailRocketRecommender",
+        version="3",
+        alias="production",
+        source_model="item_knn",
+        model_uri="models:/m-test",
+        run_id="run-test",
+        primary_metric="ndcg_at_k",
+        primary_metric_value=0.04,
+        k=EXPECTED_K,
+        evaluated_users=EXPECTED_USERS,
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "register_model",
+            "--promote-to-production",
+        ],
+    )
+
+    calls: list[bool] = []
+
+    def fake_run_model_registration(
+        *,
+        promote_to_production: bool = False,
+    ) -> RegistrationResult:
+        calls.append(promote_to_production)
+        return expected_result
+
+    monkeypatch.setattr(
+        register_model_pipeline,
+        "run_model_registration",
+        fake_run_model_registration,
+    )
+
+    register_model_pipeline.main()
+
+    assert calls == [True]
+    assert "alias 'production'" in capsys.readouterr().out
